@@ -8,6 +8,7 @@
 - Desarrollo del diagrama de actividad de la aplicación
 - Investigación sobre modelos RAG
 - Desarrollo de la parte inicial de la memoria
+- Desarrollo del primer modelo RAG de prueba
 
 ## Semana 2 (29/10/2024)
 
@@ -30,3 +31,9 @@ based on Open-Source Chinese Military News"
 - Investigación sobre el modelo Ollama
 - Adaptación del RAG creado la primera semana al modelo Ollama
 - Introducción de los patrones de diseño software Estrategia y Factoria al proyecto del Crawler.
+
+## Semana 5 (26/11/2024)
+
+- Implementación de la BD Cassandra
+- Implementación de la BD ChromaDB
+- 
