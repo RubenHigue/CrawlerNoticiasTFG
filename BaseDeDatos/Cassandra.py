@@ -15,3 +15,9 @@ class Cassandra:
 
     def close(self):
         self.cluster.shutdown()
+
+    def query_data(self, table, where_conditions, fields):
+        where_clause = " AND ".join([f"{key}='{value}'" for key, value in where_conditions.items()])
+        query = f"SELECT {', '.join(fields)} FROM {table} WHERE {where_clause};"
+        results = self.session.execute(query)
+        return results.all()
