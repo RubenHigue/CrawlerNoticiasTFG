@@ -1,5 +1,6 @@
 import csv
 import uuid
+import sys
 
 import ollama
 
@@ -19,7 +20,7 @@ embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 # Función para generar respuestas con Ollama
 def generate_response_with_ollama(question, context):
     prompt = (
-            "Eres un asistente para tareas de respuesta a preguntas. "
+            "Eres un asistente militar de defensa para tareas de respuesta a preguntas. "
             "Utiliza las siguientes piezas de contexto recuperado para responder a la pregunta. "
             "Si no sabes la respuesta, di que no la sabes. "
             "Usa un máximo de tres frases y mantén la respuesta concisa."
@@ -40,7 +41,8 @@ def main_menu():
         print("1. Ejecutar scraping y almacenar en bases de datos")
         print("2. Consultar datos en ChromaDB")
         print("3. Consultar a Ollama")
-        print("4. Salir")
+        print("4. Copiar los datos a ChromaDB")
+        print("5. Salir")
         choice = input("Selecciona una opción (1-4): ")
 
         if choice == "1":
@@ -62,16 +64,22 @@ def main_menu():
 
             print(answer)
         elif choice == "4":
+            print("Copying the data from Cassandra to local database...")
+            migrate_cassandra_to_chroma()
+            print("Done.")
+        elif choice == "5":
             print("Saliendo del programa.")
             break
         else:
-            print("Opción no válida. Por favor, selecciona una opción entre 1 y 3.")
+            print("Opción no válida. Por favor, selecciona una opción entre 1 y 5.")
 
 
 def process_article(article_data):
+    titular_modificado = article_data["titular"].replace("'", "''")
+
     existing_article = cassandra.query_data(
         table="noticias_tabulares",
-        where_conditions={"titular": article_data["titular"]},
+        where_conditions={"titular": titular_modificado},
         fields=["titular"]
     )
 
@@ -90,26 +98,44 @@ def process_article(article_data):
                 "titular": article_data["titular"],
                 "autor": article_data["autor"],
                 "autor_url": article_data["autor_url"],
+                "noticia": article_data["noticia"],
+                "articulo_original": article_data["articulo_original"],
                 "url": article_data["url"]
+
             }
         )
 
-    embedding = embedding_model.encode(article_data["noticia"])
 
-    chroma.insert_article(
-        doc_id=str(uuid.uuid4()),
-        metadata={
-            "fuente": article_data["fuente"],
-            "fecha": article_data["fecha"],
-            "titular": article_data["titular"],
-            "url": article_data["url"]
-        },
-        content=article_data["noticia"],
-        embedding=embedding
+def migrate_cassandra_to_chroma():
+    all_articles = cassandra.get_all_entities(
+        table="noticias_tabulares"
     )
+
+    print(f"Se encontraron {len(all_articles)} artículos en Cassandra para migrar a Chroma.")
+
+    for article in all_articles:
+        print(f"Migrando artículo con ID: {article['id']} - Titular: {article['titular']}")
+
+        embedding = embedding_model.encode(article["noticia"])
+
+        chroma.insert_article(
+            doc_id=str(article["id"]),
+            metadata={
+                "fuente": article["fuente"],
+                "fecha": article["fecha"],
+                "titular": article["titular"],
+                "url": article["url"]
+            },
+            content=article["noticia"],
+            embedding=embedding
+        )
+
+    print("Migración completa. Todos los artículos han sido insertados en Chroma.")
 
 
 def process_csv_file(csv_file_path):
+    print("Procesando el archivo CSV con las noticias nuevas.")
+    csv.field_size_limit(sys.maxsize)
     with open(csv_file_path, mode="r", encoding="utf-8") as file:
         reader = csv.DictReader(file)
         for row in reader:
@@ -127,6 +153,7 @@ def process_csv_file(csv_file_path):
 
 
 def crawl_and_store(url):
+    print(f"Crawling {url}...")
     crawl_website(url, "noticias_defensa.csv")
     process_csv_file("noticias_defensa.csv")
 
