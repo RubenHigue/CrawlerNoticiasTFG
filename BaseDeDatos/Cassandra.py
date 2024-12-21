@@ -21,3 +21,13 @@ class Cassandra:
         query = f"SELECT {', '.join(fields)} FROM {table} WHERE {where_clause};"
         results = self.session.execute(query)
         return results.all()
+
+    def get_all_entities(self, table):
+        try:
+            query = f"SELECT * FROM {table};"
+            results = self.session.execute(query)
+
+            return [row._asdict() for row in results]
+        except Exception as e:
+            print(f"Error al recuperar las entidades de la tabla {table}: {e}")
+            return []
