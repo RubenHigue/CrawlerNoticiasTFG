@@ -59,9 +59,12 @@ def main_menu():
             question = input("Introduce tu consulta: ")
             query_embedding = embedding_model.encode(question).tolist()
             relevant_news = chroma.search(query_embedding=query_embedding)
-            context = (str(relevant_news.get("documents")))
-            answer = generate_response_with_ollama(question, context)
-
+            raw_context = (relevant_news.get("documents"))
+            metadata = relevant_news.get("metadatas")
+            context = []
+            for news, meta in zip(raw_context[0], metadata[0]):
+                context.append("La fecha del articulo es: " + str(meta['fecha']) + " " + str(news))
+            answer = generate_response_with_ollama(question, str(context))
             print(answer)
         elif choice == "4":
             print("Copying the data from Cassandra to local database...")
