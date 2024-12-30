@@ -15,7 +15,7 @@ class ChromaDB:
             embeddings=[embedding]
         )
 
-    def search(self, query_embedding, top_k=5):
+    def search(self, query_embedding, top_k=3):
         """
         Busca en la colección utilizando un embedding de consulta.
         :param query_embedding: Vector de embedding de la consulta.
@@ -24,4 +24,19 @@ class ChromaDB:
         return self.collection.query(
             query_embeddings=[query_embedding],
             n_results=top_k
+        )
+
+    def searchByDate(self, query_embedding, date, top_k=3):
+        """
+        Busca en la colección utilizando un embedding de consulta y una fecha.
+        :param date: Fecha de la que se querrá obtener la consulta.
+        :param query_embedding: Vector de embedding de la consulta.
+        :param top_k: Número de resultados a devolver.
+        """
+        return self.collection.query(
+            query_embeddings=[query_embedding],
+            n_results=top_k,
+            where={
+                "fecha": date
+            }
         )
