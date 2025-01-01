@@ -1,6 +1,7 @@
 import csv
 import uuid
 import sys
+from datetime import datetime
 
 import ollama
 
@@ -27,11 +28,24 @@ def generate_response_with_ollama(question, context):
             "\n\nContexto:\n" + context + "\n\nPregunta:\n" + question
     )
 
+    prompt2 = (
+            "Eres un asistente para tareas de respuesta a preguntas. "
+            "Utiliza las siguientes piezas de contexto recuperado para responder a la pregunta. "
+            "Si no sabes la respuesta, di que no la sabes. "
+            "Usa un máximo de tres frases y mantén la respuesta concisa."
+            "\n\nContexto:\n" + context + "\n\nPregunta:\n" + question
+    )
+
     response = ollama.chat(
         model='llama3.2',
         messages=[{'role': 'user', 'content': prompt}]
     )
-
+    response2 = ollama.chat(
+        model='llama3.2',
+        messages=[{'role': 'user', 'content': prompt2}]
+    )
+    print(response2.get('message', "No response received"))
+    print(response.get('message', "No response received."))
     return response.get('message', "No response received.")
 
 
@@ -41,9 +55,10 @@ def main_menu():
         print("1. Ejecutar scraping y almacenar en bases de datos")
         print("2. Consultar datos en ChromaDB")
         print("3. Consultar a Ollama")
-        print("4. Copiar los datos a ChromaDB")
-        print("5. Salir")
-        choice = input("Selecciona una opción (1-4): ")
+        print("4. Consultar a Ollama con rangos de fechas")
+        print("5. Copiar los datos a ChromaDB")
+        print("6. Salir")
+        choice = input("Selecciona una opción (1-6): ")
 
         if choice == "1":
             crawl_and_store("https://www.libertaddigital.com/defensa/")
@@ -57,24 +72,38 @@ def main_menu():
                 print(f"Resultado {i}: {result}")
         elif choice == "3":
             question = input("Introduce tu consulta: ")
+            date = input("Introduce la fecha en la que desea buscar: ")
             query_embedding = embedding_model.encode(question).tolist()
-            relevant_news = chroma.search(query_embedding=query_embedding)
+            relevant_news = chroma.searchByDate(query_embedding=query_embedding, date=date)
             raw_context = (relevant_news.get("documents"))
             metadata = relevant_news.get("metadatas")
             context = []
             for news, meta in zip(raw_context[0], metadata[0]):
                 context.append("La fecha del articulo es: " + str(meta['fecha']) + " " + str(news))
             answer = generate_response_with_ollama(question, str(context))
-            print(answer)
+            #print(answer)
         elif choice == "4":
+            question = input("Introduce tu consulta: ")
+            date = input("Introduce la fecha en la que desea buscar: ")
+            date2 = input("Introduce la segunda fecha del rango: ")
+            query_embedding = embedding_model.encode(question).tolist()
+            relevant_news = chroma.searchByRangesDate(query_embedding=query_embedding, date=date, date2=date2)
+            raw_context = (relevant_news.get("documents"))
+            metadata = relevant_news.get("metadatas")
+            context = []
+            for news, meta in zip(raw_context[0], metadata[0]):
+                context.append("La fecha del articulo es: " + str(meta['fecha']) + " " + str(news))
+            answer = generate_response_with_ollama(question, str(context))
+            #print(answer)
+        elif choice == "5":
             print("Copying the data from Cassandra to local database...")
             migrate_cassandra_to_chroma()
             print("Done.")
-        elif choice == "5":
+        elif choice == "6":
             print("Saliendo del programa.")
             break
         else:
-            print("Opción no válida. Por favor, selecciona una opción entre 1 y 5.")
+            print("Opción no válida. Por favor, selecciona una opción entre 1 y 6.")
 
 
 def process_article(article_data):
@@ -125,7 +154,7 @@ def migrate_cassandra_to_chroma():
             doc_id=str(article["id"]),
             metadata={
                 "fuente": article["fuente"],
-                "fecha": article["fecha"],
+                "fecha": datetime.strptime(article["fecha"], "%d/%m/%Y").timestamp(),
                 "titular": article["titular"],
                 "url": article["url"]
             },
