@@ -1,3 +1,4 @@
+import asyncio
 import csv
 import uuid
 import sys
@@ -9,6 +10,12 @@ from Crawler import crawl_website
 from BaseDeDatos.Cassandra import Cassandra
 from BaseDeDatos.ChromaDB import ChromaDB
 from sentence_transformers import SentenceTransformer
+
+from ragas.metrics import (
+    LLMContextPrecisionWithReference,
+    LLMContextRecall,
+)
+from ragas import SingleTurnSample
 
 # Inicializar bases de datos
 cassandra = Cassandra(hosts=["127.0.0.1"], keyspace="noticias")
@@ -55,10 +62,11 @@ def main_menu():
         print("1. Ejecutar scraping y almacenar en bases de datos")
         print("2. Consultar datos en ChromaDB")
         print("3. Consultar a Ollama")
-        print("4. Consultar a Ollama con rangos de fechas")
-        print("5. Copiar los datos a ChromaDB")
-        print("6. Salir")
-        choice = input("Selecciona una opción (1-6): ")
+        print("4. Consultar a Ollama con fecha aproximada")
+        print("5. Consultar a Ollama con rangos de fechas")
+        print("6. Copiar los datos a ChromaDB")
+        print("7. Salir")
+        choice = input("Selecciona una opción (1-7): ")
 
         if choice == "1":
             crawl_and_store("https://www.libertaddigital.com/defensa/")
@@ -72,6 +80,17 @@ def main_menu():
                 print(f"Resultado {i}: {result}")
         elif choice == "3":
             question = input("Introduce tu consulta: ")
+            query_embedding = embedding_model.encode(question).tolist()
+            relevant_news = chroma.search(query_embedding=query_embedding)
+            raw_context = (relevant_news.get("documents"))
+            metadata = relevant_news.get("metadatas")
+            context = []
+            for news, meta in zip(raw_context[0], metadata[0]):
+                context.append("La fecha del articulo es: " + str(meta['fecha']) + " " + str(news))
+            answer = generate_response_with_ollama(question, str(context))
+            # print(answer)
+        elif choice == "4":
+            question = input("Introduce tu consulta: ")
             date = input("Introduce la fecha en la que desea buscar: ")
             query_embedding = embedding_model.encode(question).tolist()
             relevant_news = chroma.searchByDate(query_embedding=query_embedding, date=date)
@@ -81,8 +100,8 @@ def main_menu():
             for news, meta in zip(raw_context[0], metadata[0]):
                 context.append("La fecha del articulo es: " + str(meta['fecha']) + " " + str(news))
             answer = generate_response_with_ollama(question, str(context))
-            #print(answer)
-        elif choice == "4":
+            # print(answer)
+        elif choice == "5":
             question = input("Introduce tu consulta: ")
             date = input("Introduce la fecha en la que desea buscar: ")
             date2 = input("Introduce la segunda fecha del rango: ")
@@ -94,16 +113,16 @@ def main_menu():
             for news, meta in zip(raw_context[0], metadata[0]):
                 context.append("La fecha del articulo es: " + str(meta['fecha']) + " " + str(news))
             answer = generate_response_with_ollama(question, str(context))
-            #print(answer)
-        elif choice == "5":
-            print("Copying the data from Cassandra to local database...")
-            migrate_cassandra_to_chroma()
-            print("Done.")
+            # print(answer)
         elif choice == "6":
+            print("Copiando los datos de Cassandra a ChromaDB...")
+            migrate_cassandra_to_chroma()
+            print("Hecho.")
+        elif choice == "7":
             print("Saliendo del programa.")
             break
         else:
-            print("Opción no válida. Por favor, selecciona una opción entre 1 y 6.")
+            print("Opción no válida. Por favor, selecciona una opción entre 1 y 7.")
 
 
 def process_article(article_data):
