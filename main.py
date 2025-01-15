@@ -4,6 +4,10 @@ import uuid
 import sys
 from datetime import datetime
 
+from ragas import RunConfig
+from ragas.dataset_schema import SingleTurnSample
+from ragas.metrics import LLMContextRecall
+
 import ollama
 
 from Crawler import crawl_website
@@ -11,11 +15,7 @@ from BaseDeDatos.Cassandra import Cassandra
 from BaseDeDatos.ChromaDB import ChromaDB
 from sentence_transformers import SentenceTransformer
 
-from ragas.metrics import (
-    LLMContextPrecisionWithReference,
-    LLMContextRecall,
-)
-from ragas import SingleTurnSample
+from Ragas.BaseLLMOllama import BaseLLMOllama
 
 # Inicializar bases de datos
 cassandra = Cassandra(hosts=["127.0.0.1"], keyspace="noticias")
@@ -51,8 +51,8 @@ def generate_response_with_ollama(question, context):
         model='llama3.2',
         messages=[{'role': 'user', 'content': prompt2}]
     )
-    print(response2.get('message', "No response received"))
-    print(response.get('message', "No response received."))
+    print(response.get('message', "No response received"))
+    print(response2.get('message', "No response received."))
     return response.get('message', "No response received.")
 
 
@@ -65,8 +65,9 @@ def main_menu():
         print("4. Consultar a Ollama con fecha aproximada")
         print("5. Consultar a Ollama con rangos de fechas")
         print("6. Copiar los datos a ChromaDB")
-        print("7. Salir")
-        choice = input("Selecciona una opción (1-7): ")
+        print("7. Evaluacion de la base de datos")
+        print("8. Salir")
+        choice = input("Selecciona una opción (1-8): ")
 
         if choice == "1":
             crawl_and_store("https://www.libertaddigital.com/defensa/")
@@ -119,10 +120,13 @@ def main_menu():
             migrate_cassandra_to_chroma()
             print("Hecho.")
         elif choice == "7":
+            print("Evaluación de los datos obtenidos.")
+            asyncio.run(test_evaluation())
+        elif choice == "8":
             print("Saliendo del programa.")
             break
         else:
-            print("Opción no válida. Por favor, selecciona una opción entre 1 y 7.")
+            print("Opción no válida. Por favor, selecciona una opción entre 1 y 8.")
 
 
 def process_article(article_data):
@@ -207,6 +211,32 @@ def crawl_and_store(url):
     print(f"Crawling {url}...")
     crawl_website(url, "noticias_defensa.csv")
     process_csv_file("noticias_defensa.csv")
+
+
+async def test_evaluation():
+    user_input = "Que modelo quiere el ejercito del aire para sustituir a los F18"
+    query_embedding = embedding_model.encode(user_input).tolist()
+    relevant_news = chroma.search(query_embedding=query_embedding)
+    raw_context = (relevant_news.get("documents"))
+    metadata = relevant_news.get("metadatas")
+    context = []
+    for news, meta in zip(raw_context[0], metadata[0]):
+        context.append("La fecha del articulo es: " + str(meta['fecha']) + " " + str(news))
+    answer = generate_response_with_ollama(user_input, str(context))
+    print(context)
+    answer = answer.get('content')
+    print(answer)
+
+    sample = SingleTurnSample(
+        user_input=user_input,
+        response=answer,
+        reference="El modelo que el Ejército del Aire está contemplando para sustituir a los F-18 es el F-35.",
+        retrieved_contexts=context,
+    )
+    context_recall = LLMContextRecall()
+    run_config = RunConfig(max_retries=3)
+    context_recall.llm = BaseLLMOllama(model_name='llama3.2', run_config=run_config)
+    await context_recall.single_turn_ascore(sample)
 
 
 # Ejecutar el proceso
