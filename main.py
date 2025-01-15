@@ -3,10 +3,15 @@ import csv
 import uuid
 import sys
 from datetime import datetime
+from dotenv import load_dotenv
+import os
 
+from langchain_core.language_models import LLM
 from ragas import RunConfig
-from ragas.dataset_schema import SingleTurnSample
-from ragas.metrics import LLMContextRecall
+from ragas import evaluate
+from ragas.dataset_schema import SingleTurnSample, EvaluationDataset
+from ragas.llms import LangchainLLMWrapper
+from ragas.metrics import LLMContextRecall, LLMContextPrecisionWithoutReference
 
 import ollama
 
@@ -16,6 +21,10 @@ from BaseDeDatos.ChromaDB import ChromaDB
 from sentence_transformers import SentenceTransformer
 
 from Ragas.BaseLLMOllama import BaseLLMOllama
+from langchain_openai import ChatOpenAI
+from langchain_openai import OpenAIEmbeddings
+
+load_dotenv()
 
 # Inicializar bases de datos
 cassandra = Cassandra(hosts=["127.0.0.1"], keyspace="noticias")
@@ -229,14 +238,33 @@ async def test_evaluation():
 
     sample = SingleTurnSample(
         user_input=user_input,
-        response=answer,
-        reference="El modelo que el Ejército del Aire está contemplando para sustituir a los F-18 es el F-35.",
+        response="El modelo que el Ejército del Aire está contemplando para sustituir a los F-18 es el F-35.",
+        reference=answer,
         retrieved_contexts=context,
     )
-    context_recall = LLMContextRecall()
+
+    sample2 = SingleTurnSample(
+        user_input=user_input,
+        response=answer,
+        retrieved_contexts=context,
+    )
+
+    # evaluation_dataset = EvaluationDataset.from_list(dataset)
+
+    # llm = ChatOpenAI(model="gpt-3.5-turbo")
+    # embeddings = OpenAIEmbeddings()
+    # evaluator_llm = LangchainLLMWrapper(llm)
+    # result = evaluate(dataset=evaluation_dataset, metrics=[LLMContextRecall()], llm=evaluator_llm)
+    # print(result)
+
     run_config = RunConfig(max_retries=3)
-    context_recall.llm = BaseLLMOllama(model_name='llama3.2', run_config=run_config)
-    await context_recall.single_turn_ascore(sample)
+    evaluator_llm = BaseLLMOllama(model_name='llama3.2', run_config=run_config)
+
+    context_recall = LLMContextRecall(llm=evaluator_llm)
+    # context_precision = LLMContextPrecisionWithoutReference(llm=evaluator_llm)
+
+    # await context_precision.single_turn_ascore(sample2)
+    await (context_recall.single_turn_ascore(sample))
 
 
 # Ejecutar el proceso
