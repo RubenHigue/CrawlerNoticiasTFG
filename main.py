@@ -6,6 +6,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 import os
 
+from langchain_community.llms.ollama import Ollama
 from langchain_core.language_models import LLM
 from ragas import RunConfig
 from ragas import evaluate
@@ -31,7 +32,7 @@ cassandra = Cassandra(hosts=["127.0.0.1"], keyspace="noticias")
 chroma = ChromaDB(collection_name="noticias_articulos")
 
 # Inicializar el modelo para embeddings
-embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+embedding_model = SentenceTransformer("jaimevera1107/all-MiniLM-L6-v2-similarity-es")
 
 
 # Función para generar respuestas con Ollama
@@ -236,35 +237,31 @@ async def test_evaluation():
     answer = answer.get('content')
     print(answer)
 
-    sample = SingleTurnSample(
-        user_input=user_input,
-        response="El modelo que el Ejército del Aire está contemplando para sustituir a los F-18 es el F-35.",
-        reference=answer,
-        retrieved_contexts=context,
-    )
+    dataset = [
+        {
+            "user_input": user_input,
+            "response": "El modelo que el Ejército del Aire está contemplando para sustituir a los F-18 es el F-35.",
+            "reference": answer,
+            "retrieved_contexts": context,
+        }
+    ]
 
-    sample2 = SingleTurnSample(
-        user_input=user_input,
-        response=answer,
-        retrieved_contexts=context,
-    )
+    evaluation_dataset = EvaluationDataset.from_list(dataset)
 
-    # evaluation_dataset = EvaluationDataset.from_list(dataset)
+    llm = Ollama(model="gemma2")
+    evaluator_llm = LangchainLLMWrapper(llm)
+    result = evaluate(dataset=evaluation_dataset, metrics=[LLMContextRecall()], llm=evaluator_llm)
+    print(result)
 
-    # llm = ChatOpenAI(model="gpt-3.5-turbo")
-    # embeddings = OpenAIEmbeddings()
-    # evaluator_llm = LangchainLLMWrapper(llm)
-    # result = evaluate(dataset=evaluation_dataset, metrics=[LLMContextRecall()], llm=evaluator_llm)
-    # print(result)
+    # run_config = RunConfig(max_retries=3)
 
-    run_config = RunConfig(max_retries=3)
-    evaluator_llm = BaseLLMOllama(model_name='llama3.2', run_config=run_config)
+    # evaluator_llm = BaseLLMOllama(model_name='gemma2', run_config=run_config)
 
-    context_recall = LLMContextRecall(llm=evaluator_llm)
+    # context_recall = LLMContextRecall(llm=evaluator_llm)
     # context_precision = LLMContextPrecisionWithoutReference(llm=evaluator_llm)
 
     # await context_precision.single_turn_ascore(sample2)
-    await (context_recall.single_turn_ascore(sample))
+    # await (context_recall.single_turn_ascore(sample))
 
 
 # Ejecutar el proceso
