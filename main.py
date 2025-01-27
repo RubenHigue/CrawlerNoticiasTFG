@@ -32,7 +32,8 @@ cassandra = Cassandra(hosts=["127.0.0.1"], keyspace="noticias")
 chroma = ChromaDB(collection_name="noticias_articulos")
 
 # Inicializar el modelo para embeddings
-embedding_model = SentenceTransformer("jaimevera1107/all-MiniLM-L6-v2-similarity-es")
+embedding_model = SentenceTransformer("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+# embedding_model = SentenceTransformer("jaimevera1107/all-MiniLM-L6-v2-similarity-es")
 
 
 # Función para generar respuestas con Ollama
