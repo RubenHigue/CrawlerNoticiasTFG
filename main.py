@@ -13,6 +13,7 @@ from ragas import evaluate
 from ragas.dataset_schema import SingleTurnSample, EvaluationDataset
 from ragas.llms import LangchainLLMWrapper
 from ragas.metrics import LLMContextRecall, LLMContextPrecisionWithoutReference
+from langchain_community.llms import VLLM
 
 import ollama
 
@@ -249,9 +250,17 @@ async def test_evaluation():
 
     evaluation_dataset = EvaluationDataset.from_list(dataset)
 
-    llm = Ollama(model="gemma2")
+    #llm = Ollama(model="deepseek-r1:7b")
+    llm = VLLM(
+        model="explodinggradients/Ragas-critic-llm-Qwen1.5-GPTQ",
+        trust_remote_code=True,  # mandatory for hf models
+        max_new_tokens=512,
+        top_k=10,
+        top_p=0.95,
+        temperature=0.0, )
     evaluator_llm = LangchainLLMWrapper(llm)
-    result = evaluate(dataset=evaluation_dataset, metrics=[LLMContextRecall()], llm=evaluator_llm)
+    run_config=RunConfig(timeout=6000)
+    result = evaluate(dataset=evaluation_dataset, metrics=[LLMContextRecall()], llm=evaluator_llm,run_config=run_config)
     print(result)
 
     # run_config = RunConfig(max_retries=3)
