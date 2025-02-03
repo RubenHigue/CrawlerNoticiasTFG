@@ -2,7 +2,6 @@ from abc import ABC
 
 import typing as t
 
-from ragas.exceptions import LLMDidNotFinishException
 from ragas.llms import BaseRagasLLM
 from langchain.schema import PromptValue, LLMResult, Generation
 import ollama
@@ -10,6 +9,14 @@ from ragas.run_config import add_async_retry
 from ragas.run_config import RunConfig
 import asyncio
 import json
+import yaml
+from pathlib import Path
+
+
+base_dir = Path(__file__).resolve().parent.parent
+
+with open(base_dir / "config_data.yaml", "r", encoding="utf-8") as file:
+    data = yaml.safe_load(file)
 
 
 def parse_json_output(output: str):
@@ -50,33 +57,11 @@ class BaseLLMOllama(BaseRagasLLM, ABC):
 
         # Ollama no soporta directamente múltiples generaciones, se hace n veces
         generations = []
-        promptPrecision = (
-                              '"reason", la razon por la que se considera que el veredicto es el que es. "veredict", un flotante '
-                              'entre 0 y 1 que represente el porcentaje de veracidad que tiene la respuesta dada el contexto'
-                              'Por favor devuelve el Output para que se adecue al siguiente ') + (
-                              "JSON Schema rellenando los datos "
-                              "reason y"
-                              "veredict:"'{"reason": "The provided '
-                              'context was indeed useful in arriving at '
-                              'the given answer. The '
-                              'context includes key information about '
-                              'Albert Einstein\'s life and contributions, '
-                              'which are reflected in the answer.", '
-                              '"verdict": 1}')
-        promptRecall = ('"statement", el apartado answer del input. "reason", '
-                        'el trozo de contexto por el que se ha guiado la respuesta y "attributed", que sera la '
-                        'puntuación o 1 o 0 en cuestión de la relevancia. Por favor devuelve el Output para que se '
-                        'adecue al siguiente ' +
-                        'JSON Schema rellenando los datos de statement, reason y attributed: "classifications": [{'
-                        '"statement": "Albert Einstein, born on 14 March 1879, was a German-born theoretical physicist,'
-                        'widely held to be one of the greatest and most influential scientists of all time.",'
-                        '"reason": "The'
-                        'date of birth of Einstein is mentioned clearly in the context.","attributed": 1},')
 
-        prompt = prompt + ('Rellena el apartado Output de la misma forma que en el ejemplo de Albert Einstein pero '
-                           'para "la answer dada, 1 si tiene relación con el artículo y 0 si no tiene nada de '
-                           'relación. Dado el input, dada la "question" procesa el "context" y saca solo el formato '
-                           'JSON con los siguientes campos: ' + promptRecall)
+        if prompt.find("ContextRecallClassification") != -1:
+            prompt = prompt + (data.get("prompt_generico"," ") + data.get("prompt_recall"," "))
+        else:
+            prompt = prompt + (data.get("prompt_generico"," ") + data.get("prompt_precision"," "))
 
         for _ in range(n):
             response = await to_thread(
@@ -149,4 +134,5 @@ class BaseLLMOllama(BaseRagasLLM, ABC):
             stop=stop,
             callbacks=callbacks,
         )
+        print(result)
         return result

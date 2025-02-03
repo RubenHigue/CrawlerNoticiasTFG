@@ -8,6 +8,8 @@ import os
 
 from langchain_community.llms.ollama import Ollama
 from langchain_core.language_models import LLM
+from langchain_community.chat_models import ChatOllama
+from langchain_community.embeddings import OllamaEmbeddings
 from ragas import RunConfig
 from ragas import evaluate
 from ragas.dataset_schema import SingleTurnSample, EvaluationDataset
@@ -23,10 +25,14 @@ from BaseDeDatos.ChromaDB import ChromaDB
 from sentence_transformers import SentenceTransformer
 
 from Ragas.BaseLLMOllama import BaseLLMOllama
-from langchain_openai import ChatOpenAI
-from langchain_openai import OpenAIEmbeddings
+from pathlib import Path
+import yaml
 
 load_dotenv()
+
+#Carga de los datos de config
+with open("config_data.yaml","r", encoding="utf-8") as file:
+    data = yaml.safe_load(file)
 
 # Inicializar bases de datos
 cassandra = Cassandra(hosts=["127.0.0.1"], keyspace="noticias")
@@ -56,11 +62,11 @@ def generate_response_with_ollama(question, context):
     )
 
     response = ollama.chat(
-        model='llama3.2',
+        model=data.get("llm_model"),
         messages=[{'role': 'user', 'content': prompt}]
     )
     response2 = ollama.chat(
-        model='llama3.2',
+        model=data.get("llm_model"),
         messages=[{'role': 'user', 'content': prompt2}]
     )
     print(response.get('message', "No response received"))
@@ -82,7 +88,7 @@ def main_menu():
         choice = input("Selecciona una opción (1-8): ")
 
         if choice == "1":
-            crawl_and_store("https://www.libertaddigital.com/defensa/")
+            crawl_and_store(data.get("news_url"))
             print("Scraping y almacenamiento completados.")
         elif choice == "2":
             query = input("Introduce tu consulta: ")
@@ -239,6 +245,7 @@ async def test_evaluation():
     answer = answer.get('content')
     print(answer)
 
+    '''
     dataset = [
         {
             "user_input": user_input,
@@ -247,31 +254,41 @@ async def test_evaluation():
             "retrieved_contexts": context,
         }
     ]
-
+    
     evaluation_dataset = EvaluationDataset.from_list(dataset)
 
-    #llm = Ollama(model="deepseek-r1:7b")
-    llm = VLLM(
-        model="explodinggradients/Ragas-critic-llm-Qwen1.5-GPTQ",
-        trust_remote_code=True,  # mandatory for hf models
-        max_new_tokens=512,
-        top_k=10,
-        top_p=0.95,
-        temperature=0.0, )
-    evaluator_llm = LangchainLLMWrapper(llm)
+    llm = ChatOllama(model="gemma2")
+    embeddings = OllamaEmbeddings(model="gemma2")
+    #evaluator_llm = LangchainLLMWrapper(llm)
     run_config=RunConfig(timeout=6000)
-    result = evaluate(dataset=evaluation_dataset, metrics=[LLMContextRecall()], llm=evaluator_llm,run_config=run_config)
+    result = evaluate(dataset=evaluation_dataset, metrics=[LLMContextRecall()], llm=llm, embeddings=embeddings,run_config=run_config)
     print(result)
+    '''
 
-    # run_config = RunConfig(max_retries=3)
+    sample = SingleTurnSample(
+        user_input=user_input,
+        response="El modelo que el Ejército del Aire está contemplando para sustituir a los F-18 es el F-35.",
+        reference=answer,
+        retrieved_contexts=context,
+    )
 
-    # evaluator_llm = BaseLLMOllama(model_name='gemma2', run_config=run_config)
+    sample2 = SingleTurnSample(
+        user_input=user_input,
+        response=answer,
+        reference="El modelo que el Ejército del Aire está contemplando para sustituir a los F-18 es el F-35.",
+        retrieved_contexts=context,
+    )
 
-    # context_recall = LLMContextRecall(llm=evaluator_llm)
-    # context_precision = LLMContextPrecisionWithoutReference(llm=evaluator_llm)
+    run_config = RunConfig(max_retries=3)
 
-    # await context_precision.single_turn_ascore(sample2)
-    # await (context_recall.single_turn_ascore(sample))
+    evaluator_llm = BaseLLMOllama(model_name=data.get("judge_model"), run_config=run_config)
+
+    context_recall = LLMContextRecall(llm=evaluator_llm)
+    context_precision = LLMContextPrecisionWithoutReference(llm=evaluator_llm)
+
+    await (context_recall.single_turn_ascore(sample))
+    #await context_precision.single_turn_ascore(sample2)
+
 
 
 # Ejecutar el proceso
