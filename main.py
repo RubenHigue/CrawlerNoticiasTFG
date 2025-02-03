@@ -190,18 +190,18 @@ def migrate_cassandra_to_chroma():
         print(f"Migrando artículo con ID: {article['id']} - Titular: {article['titular']}")
 
         embedding = embedding_model.encode(article["noticia"])
-
-        chroma.insert_article(
-            doc_id=str(article["id"]),
-            metadata={
-                "fuente": article["fuente"],
-                "fecha": datetime.strptime(article["fecha"], "%d/%m/%Y").timestamp(),
-                "titular": article["titular"],
-                "url": article["url"]
-            },
-            content=article["noticia"],
-            embedding=embedding
-        )
+        if article["fecha"] != "Fecha no encontrada":
+            chroma.insert_article(
+                doc_id=str(article["id"]),
+                metadata={
+                    "fuente": article["fuente"],
+                    "fecha": datetime.strptime(article["fecha"], "%d/%m/%Y").timestamp(),
+                    "titular": article["titular"],
+                    "url": article["url"]
+                },
+                content=article["noticia"],
+                embedding=embedding
+            )
 
     print("Migración completa. Todos los artículos han sido insertados en Chroma.")
 
@@ -283,11 +283,11 @@ async def test_evaluation():
 
     evaluator_llm = BaseLLMOllama(model_name=data.get("judge_model"), run_config=run_config)
 
-    context_recall = LLMContextRecall(llm=evaluator_llm)
+    #context_recall = LLMContextRecall(llm=evaluator_llm)
     context_precision = LLMContextPrecisionWithoutReference(llm=evaluator_llm)
 
-    await (context_recall.single_turn_ascore(sample))
-    #await context_precision.single_turn_ascore(sample2)
+    #await (context_recall.single_turn_ascore(sample))
+    await context_precision.single_turn_ascore(sample2)
 
 
 
