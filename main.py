@@ -28,6 +28,12 @@ from Ragas.BaseLLMOllama import BaseLLMOllama
 from pathlib import Path
 import yaml
 
+import tkinter as tk
+from tkinter import ttk, messagebox
+from tkcalendar import DateEntry
+from PIL import Image, ImageTk
+import asyncio
+
 load_dotenv()
 
 # Carga de los datos de config
@@ -67,7 +73,7 @@ def generate_response_with_ollama(question, context):
     print(response2.get('message', "No response received."))
     return response.get('message', "No response received.")
 
-
+'''
 def main_menu():
     while True:
         print("\n=== Menú Principal ===")
@@ -141,6 +147,157 @@ def main_menu():
             break
         else:
             print("Opción no válida. Por favor, selecciona una opción entre 1 y 8.")
+'''
+
+def crear_cabecera(parent, logo_path):
+    """Crea una cabecera con logo y título."""
+    cabecera = tk.Frame(parent, bg="#006D38", height=60)
+    cabecera.pack(fill="x")
+
+    # Cargar imagen del logo
+    img = Image.open(logo_path)
+    img = img.resize((50, 50), Image.Resampling.LANCZOS)
+    logo = ImageTk.PhotoImage(img)
+
+    # Label para el logo
+    logo_label = tk.Label(cabecera, image=logo, bg="#006D38")
+    logo_label.image = logo  # Mantener referencia
+    logo_label.pack(side="left", padx=10, pady=5)
+
+    # Label para el título
+    titulo_label = tk.Label(cabecera, text="RAG de Defensa", fg="white", bg="#006D38",
+                            font=("Arial", 18, "bold"))
+    titulo_label.pack(side="left", expand=True)
+
+    return cabecera
+
+def execute_query():
+    question = query_entry.get()
+    if not question:
+        messagebox.showwarning("Entrada vacía", "Por favor, introduce una consulta.")
+        return
+
+    query_embedding = embedding_model.encode(question).tolist()
+    relevant_news = chroma.search(query_embedding=query_embedding, top_k=data.get("retrieved_docs"))
+    raw_context = relevant_news.get("documents")
+    metadata = relevant_news.get("metadatas")
+    context = []
+    for news, meta in zip(raw_context[0], metadata[0]):
+        context.append("La fecha del artículo es: " + str(meta['fecha']) + " " + str(news))
+    answer = generate_response_with_ollama(question, str(context))
+    response_text.delete("1.0", tk.END)
+    response_text.insert(tk.END, answer.get("content"))
+
+
+def execute_query_with_date():
+    question = query_entry_date.get()
+    date = date_entry.get()
+    date2 = date_entry2.get()
+    if not question or not date or not date2:
+        messagebox.showwarning("Entrada vacía", "Por favor, completa la consulta y selecciona las fechas.")
+        return
+    if date != date2:
+        query_embedding = embedding_model.encode(question).tolist()
+        relevant_news = chroma.searchByRangesDate(query_embedding=query_embedding, date=date, date2=date2,
+                                                  top_k=data.get("retrieved_docs"))
+        raw_context = relevant_news.get("documents")
+        metadata = relevant_news.get("metadatas")
+        context = []
+        for news, meta in zip(raw_context[0], metadata[0]):
+            context.append("La fecha del artículo es: " + str(meta['fecha']) + " " + str(news))
+        answer = generate_response_with_ollama(question, str(context))
+        response_text_date.delete("1.0", tk.END)
+        response_text_date.insert(tk.END, answer.get("content"))
+    else:
+        query_embedding = embedding_model.encode(question).tolist()
+        relevant_news = chroma.searchByDate(query_embedding=query_embedding, date=date,
+                                                  top_k=data.get("retrieved_docs"))
+        raw_context = relevant_news.get("documents")
+        metadata = relevant_news.get("metadatas")
+        context = []
+        for news, meta in zip(raw_context[0], metadata[0]):
+            context.append("La fecha del artículo es: " + str(meta['fecha']) + " " + str(news))
+        answer = generate_response_with_ollama(question, str(context))
+        response_text_date.delete("1.0", tk.END)
+        response_text_date.insert(tk.END, answer.get("content"))
+
+
+def run_scraping():
+    crawl_and_store(data.get("news_url"))
+    messagebox.showinfo("Scraping", "Scraping y almacenamiento completados.")
+
+
+def migrate_data():
+    migrate_cassandra_to_chroma()
+    messagebox.showinfo("Migración", "Migración de datos completada.")
+
+
+def evaluate_data():
+    asyncio.run(test_evaluation())
+    messagebox.showinfo("Evaluación", "Evaluación completada.")
+
+
+# Configuración de la ventana principal
+root = tk.Tk()
+root.title("RAG de defensa")
+crear_cabecera(root,"./Images/LogoUJA.jpg")
+root.geometry("800x600")
+
+notebook = ttk.Notebook(root)
+notebook.pack(expand=True, fill="both")
+
+# Pestaña 1: Consulta sin fecha
+frame1 = ttk.Frame(notebook)
+notebook.add(frame1, text="Consulta sin Fecha")
+
+response_text = tk.Text(frame1, height=10)
+response_text.pack(fill="both", expand=True, padx=20, pady=10)
+
+query_label = ttk.Label(frame1, text="Introduce tu consulta:")
+query_label.pack()
+query_entry = ttk.Entry(frame1, width=80)
+query_entry.pack(fill="x", expand=True, padx=20, pady=10)
+
+execute_button = ttk.Button(frame1, text="Ejecutar Consulta", command=execute_query)
+execute_button.pack()
+
+# Pestaña 2: Consulta con fecha
+frame2 = ttk.Frame(notebook)
+notebook.add(frame2, text="Consulta con Fecha")
+
+query_label_date = ttk.Label(frame2, text="Introduce tu consulta:")
+query_label_date.pack()
+query_entry_date = ttk.Entry(frame2, width=80)
+query_entry_date.pack()
+
+date_label = ttk.Label(frame2, text="Fecha inicial:")
+date_label.pack()
+date_entry = DateEntry(frame2, date_pattern='dd/mm/yyyy')
+date_entry.pack()
+
+date_label2 = ttk.Label(frame2, text="Fecha final:")
+date_label2.pack()
+date_entry2 = DateEntry(frame2, date_pattern='dd/mm/yyyy')
+date_entry2.pack()
+
+execute_button_date = ttk.Button(frame2, text="Ejecutar Consulta", command=execute_query_with_date)
+execute_button_date.pack()
+
+response_text_date = tk.Text(frame2, height=10, width=80)
+response_text_date.pack()
+
+# Pestaña 3: Opciones avanzadas
+frame3 = ttk.Frame(notebook)
+notebook.add(frame3, text="Opciones Avanzadas")
+
+scraping_button = ttk.Button(frame3, text="Ejecutar Scraping", command=run_scraping)
+scraping_button.pack()
+
+migrate_button = ttk.Button(frame3, text="Migrar Datos a ChromaDB", command=migrate_data)
+migrate_button.pack()
+
+evaluate_button = ttk.Button(frame3, text="Evaluar Base de Datos", command=evaluate_data)
+evaluate_button.pack()
 
 
 def process_article(article_data):
@@ -204,7 +361,7 @@ def migrate_cassandra_to_chroma():
 
 def process_csv_file(csv_file_path):
     print("Procesando el archivo CSV con las noticias nuevas.")
-    csv.field_size_limit(sys.maxsize)
+    csv.field_size_limit(2**30)
     with open(csv_file_path, mode="r", encoding="utf-8") as file:
         reader = csv.DictReader(file)
         for row in reader:
@@ -291,6 +448,6 @@ async def test_evaluation():
 # Ejecutar el proceso
 if __name__ == "__main__":
     try:
-        main_menu()
+        tk.mainloop()
     finally:
         cassandra.close()
