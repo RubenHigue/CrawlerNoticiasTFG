@@ -279,10 +279,12 @@ async def test_evaluation():
 
     evaluator_llm = BaseLLMOllama(model_name=data.get("judge_model"), run_config=run_config)
 
-    # context_recall = LLMContextRecall(llm=evaluator_llm)
+    context_recall = LLMContextRecall(llm=evaluator_llm)
     context_precision = LLMContextPrecisionWithoutReference(llm=evaluator_llm)
 
-    # await (context_recall.single_turn_ascore(sample))
+    print("Context Recall Results: ")
+    await (context_recall.single_turn_ascore(sample))
+    print("Context Precision Results: ")
     await context_precision.single_turn_ascore(sample2)
 
 
