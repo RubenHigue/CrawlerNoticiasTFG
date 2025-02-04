@@ -17,7 +17,7 @@ class ChromaDB:
             embeddings=[embedding]
         )
 
-    def search(self, query_embedding, top_k=1):
+    def search(self, query_embedding, top_k=3):
         """
         Busca en la colección utilizando un embedding de consulta.
         :param query_embedding: Vector de embedding de la consulta.

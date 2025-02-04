@@ -30,36 +30,30 @@ import yaml
 
 load_dotenv()
 
-#Carga de los datos de config
-with open("config_data.yaml","r", encoding="utf-8") as file:
+# Carga de los datos de config
+with open("config_data.yaml", "r", encoding="utf-8") as file:
     data = yaml.safe_load(file)
 
 # Inicializar bases de datos
-cassandra = Cassandra(hosts=["127.0.0.1"], keyspace="noticias")
+cassandra = Cassandra(hosts=[data.get("cassandra_host")], keyspace=data.get("keyspace"))
 chroma = ChromaDB(collection_name="noticias_articulos")
 
 # Inicializar el modelo para embeddings
 embedding_model = SentenceTransformer("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+
+
 # embedding_model = SentenceTransformer("jaimevera1107/all-MiniLM-L6-v2-similarity-es")
 
 
 # Función para generar respuestas con Ollama
 def generate_response_with_ollama(question, context):
-    prompt = (
-            "Eres un asistente militar de defensa para tareas de respuesta a preguntas. "
-            "Utiliza las siguientes piezas de contexto recuperado para responder a la pregunta. "
-            "Si no sabes la respuesta, di que no la sabes. "
-            "Usa un máximo de tres frases y mantén la respuesta concisa."
-            "\n\nContexto:\n" + context + "\n\nPregunta:\n" + question
-    )
+    prompt = (data.get("military_prompt", " ") +
+              "\n\nContexto:\n" + context + "\n\nPregunta:\n" + question
+              )
 
-    prompt2 = (
-            "Eres un asistente para tareas de respuesta a preguntas. "
-            "Utiliza las siguientes piezas de contexto recuperado para responder a la pregunta. "
-            "Si no sabes la respuesta, di que no la sabes. "
-            "Usa un máximo de tres frases y mantén la respuesta concisa."
-            "\n\nContexto:\n" + context + "\n\nPregunta:\n" + question
-    )
+    prompt2 = (data.get("assistant_prompt", " ") +
+               "\n\nContexto:\n" + context + "\n\nPregunta:\n" + question
+               )
 
     response = ollama.chat(
         model=data.get("llm_model"),
@@ -93,14 +87,14 @@ def main_menu():
         elif choice == "2":
             query = input("Introduce tu consulta: ")
             query_embedding = embedding_model.encode(query).tolist()
-            results = chroma.search(query_embedding=query_embedding)
+            results = chroma.search(query_embedding=query_embedding, top_k=data.get("retrieved_docs"))
             print("\n=== Resultados de la consulta ===")
             for i, result in enumerate(results["documents"], 1):
                 print(f"Resultado {i}: {result}")
         elif choice == "3":
             question = input("Introduce tu consulta: ")
             query_embedding = embedding_model.encode(question).tolist()
-            relevant_news = chroma.search(query_embedding=query_embedding)
+            relevant_news = chroma.search(query_embedding=query_embedding, top_k=data.get("retrieved_docs"))
             raw_context = (relevant_news.get("documents"))
             metadata = relevant_news.get("metadatas")
             context = []
@@ -112,7 +106,8 @@ def main_menu():
             question = input("Introduce tu consulta: ")
             date = input("Introduce la fecha en la que desea buscar: ")
             query_embedding = embedding_model.encode(question).tolist()
-            relevant_news = chroma.searchByDate(query_embedding=query_embedding, date=date)
+            relevant_news = chroma.searchByDate(query_embedding=query_embedding, date=date,
+                                                top_k=data.get("retrieved_docs"))
             raw_context = (relevant_news.get("documents"))
             metadata = relevant_news.get("metadatas")
             context = []
@@ -125,7 +120,8 @@ def main_menu():
             date = input("Introduce la fecha en la que desea buscar: ")
             date2 = input("Introduce la segunda fecha del rango: ")
             query_embedding = embedding_model.encode(question).tolist()
-            relevant_news = chroma.searchByRangesDate(query_embedding=query_embedding, date=date, date2=date2)
+            relevant_news = chroma.searchByRangesDate(query_embedding=query_embedding, date=date, date2=date2,
+                                                      top_k=data.get("retrieved_docs"))
             raw_context = (relevant_news.get("documents"))
             metadata = relevant_news.get("metadatas")
             context = []
@@ -234,7 +230,7 @@ def crawl_and_store(url):
 async def test_evaluation():
     user_input = "Que modelo quiere el ejercito del aire para sustituir a los F18"
     query_embedding = embedding_model.encode(user_input).tolist()
-    relevant_news = chroma.search(query_embedding=query_embedding)
+    relevant_news = chroma.search(query_embedding=query_embedding, top_k=data.get("retrieved_docs"))
     raw_context = (relevant_news.get("documents"))
     metadata = relevant_news.get("metadatas")
     context = []
@@ -283,12 +279,11 @@ async def test_evaluation():
 
     evaluator_llm = BaseLLMOllama(model_name=data.get("judge_model"), run_config=run_config)
 
-    #context_recall = LLMContextRecall(llm=evaluator_llm)
+    # context_recall = LLMContextRecall(llm=evaluator_llm)
     context_precision = LLMContextPrecisionWithoutReference(llm=evaluator_llm)
 
-    #await (context_recall.single_turn_ascore(sample))
+    # await (context_recall.single_turn_ascore(sample))
     await context_precision.single_turn_ascore(sample2)
-
 
 
 # Ejecutar el proceso
