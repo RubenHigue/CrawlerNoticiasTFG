@@ -21,7 +21,6 @@ from Interface.RAGDefensaApp import RAGDefensaApp
 from Ragas.BaseLLMOllama import BaseLLMOllama
 import yaml
 
-
 load_dotenv()
 
 # Carga de los datos de config
@@ -62,6 +61,7 @@ def generate_response_with_ollama(question, context):
     return response.get('message', "No response received.")
 
 
+# Funcion para consultas sin fechas
 def response_without_dates(question):
     query_embedding = embedding_model.encode(question).tolist()
     relevant_news = chroma.search(query_embedding=query_embedding, top_k=data.get("retrieved_docs"))
@@ -70,6 +70,7 @@ def response_without_dates(question):
     return answer
 
 
+# Funcion para consultas con fechas
 def response_with_dates(question, date, date2):
     if date != date2:
         query_embedding = embedding_model.encode(question).tolist()
@@ -87,6 +88,7 @@ def response_with_dates(question, date, date2):
         return answer
 
 
+# Funcion para procesar el contexto y sus metadatos para el modelo
 def process_relevant_news(relevant_news):
     raw_context = relevant_news.get("documents")
     metadata = relevant_news.get("metadatas")
@@ -96,6 +98,7 @@ def process_relevant_news(relevant_news):
     return context
 
 
+# Función para introducir los articulos en Cassandra
 def process_article(article_data):
     titular_modificado = article_data["titular"].replace("'", "''")
 
@@ -128,6 +131,7 @@ def process_article(article_data):
         )
 
 
+# Función para migrar los articulos de Cassandra a Chroma
 def migrate_cassandra_to_chroma():
     all_articles = cassandra.get_all_entities(
         table="noticias_tabulares"
@@ -155,6 +159,7 @@ def migrate_cassandra_to_chroma():
     print("Migración completa. Todos los artículos han sido insertados en Chroma.")
 
 
+# Funcion para procesar el archivo con las noticias del Scrapper para introducirlas en Cassandra
 def process_csv_file(csv_file_path):
     print("Procesando el archivo CSV con las noticias nuevas.")
     csv.field_size_limit(2 ** 30)
@@ -174,12 +179,14 @@ def process_csv_file(csv_file_path):
             })
 
 
+# Funcion que ejecuta el crawler
 def crawl_and_store(url):
     print(f"Crawling {url}...")
     crawl_website(url, "noticias_defensa.csv")
     process_csv_file("noticias_defensa.csv")
 
 
+# Funcion que ejecuta la evaluacion del proyecto
 async def test_evaluation():
     user_input = "Que modelo quiere el ejercito del aire para sustituir a los F18"
     query_embedding = embedding_model.encode(user_input).tolist()
