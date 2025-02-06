@@ -25,6 +25,7 @@ class RAGDefensaApp(QWidget):
         self.test_evaluation = test_evaluation
         self.get_articles_from_db = get_articles_from_db
         self.current_page = 0
+        self.max_pages = 0
         self.articles_per_page = 10
 
         self.setWindowTitle("RAG de Defensa")
@@ -153,6 +154,8 @@ class RAGDefensaApp(QWidget):
 
     def load_articles(self):
         articles = self.get_articles_from_db(data.get("table_name"))
+
+        self.max_pages = (len(articles) / 10) - 1
         start = self.current_page * self.articles_per_page
         end = start + self.articles_per_page
         self.articles_table.setRowCount(0)
@@ -168,8 +171,9 @@ class RAGDefensaApp(QWidget):
             self.load_articles()
 
     def next_page(self):
-        self.current_page += 1
-        self.load_articles()
+        if self.current_page < self.max_pages:
+            self.current_page += 1
+            self.load_articles()
 
 
     def execute_query(self):
