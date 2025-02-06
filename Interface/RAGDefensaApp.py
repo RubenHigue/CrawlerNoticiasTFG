@@ -122,6 +122,7 @@ class RAGDefensaApp(QWidget):
         evaluate_button = QPushButton("Evaluar Base de Datos")
         evaluate_button.clicked.connect(self.evaluate_data)
 
+        layout.addWidget(crawl_button)
         layout.addWidget(migrate_button)
         layout.addWidget(evaluate_button)
         tab.setLayout(layout)

@@ -264,5 +264,4 @@ if __name__ == "__main__":
         window.show()
         sys.exit(app.exec())
     finally:
-        crawl_and_store(data.get("news_url"))
         cassandra.close()
