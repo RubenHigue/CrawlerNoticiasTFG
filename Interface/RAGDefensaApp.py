@@ -1,7 +1,8 @@
 import asyncio
 
 from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QVBoxLayout, QHBoxLayout,
-                             QPushButton, QTextEdit, QTabWidget, QLineEdit, QDateEdit, QMessageBox)
+                             QPushButton, QTextEdit, QTabWidget, QLineEdit, QDateEdit, QMessageBox,
+                             QTableWidget, QTableWidgetItem)
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt
 import yaml
@@ -14,13 +15,18 @@ with open(base_dir / "config_data.yaml", "r", encoding="utf-8") as file:
 
 
 class RAGDefensaApp(QWidget):
-    def __init__(self,response_without_dates,response_with_dates,crawl_and_store,migrate_cassandra_to_chroma,test_evaluation):
+    def __init__(self, response_without_dates, response_with_dates, crawl_and_store, migrate_cassandra_to_chroma,
+                 test_evaluation, get_articles_from_db):
         super().__init__()
         self.response_without_dates = response_without_dates
         self.response_with_dates = response_with_dates
         self.crawl_and_store = crawl_and_store
         self.migrate_cassandra_to_chroma = migrate_cassandra_to_chroma
         self.test_evaluation = test_evaluation
+        self.get_articles_from_db = get_articles_from_db
+        self.current_page = 0
+        self.articles_per_page = 10
+
         self.setWindowTitle("RAG de Defensa")
         self.setGeometry(100, 100, 800, 600)
 
@@ -46,6 +52,7 @@ class RAGDefensaApp(QWidget):
         self.tabs = QTabWidget()
         self.create_query_tab()
         self.create_query_with_date_tab()
+        self.create_documents_tab()
         self.create_advanced_tab()
 
         main_layout.addWidget(self.tabs)
@@ -55,16 +62,19 @@ class RAGDefensaApp(QWidget):
         tab = QWidget()
         layout = QVBoxLayout()
 
+        query_layout = QHBoxLayout()
         self.query_entry = QLineEdit()
         self.query_entry.setPlaceholderText("Introduce tu consulta")
-        self.response_text = QTextEdit()
-        self.response_text.setReadOnly(True)
         execute_button = QPushButton("Ejecutar Consulta")
         execute_button.clicked.connect(self.execute_query)
+        query_layout.addWidget(self.query_entry)
+        query_layout.addWidget(execute_button)
 
-        layout.addWidget(self.query_entry)
-        layout.addWidget(execute_button)
+        self.response_text = QTextEdit()
+        self.response_text.setReadOnly(True)
+
         layout.addWidget(self.response_text)
+        layout.addLayout(query_layout)
         tab.setLayout(layout)
         self.tabs.addTab(tab, "Consulta sin Fecha")
 
@@ -72,24 +82,32 @@ class RAGDefensaApp(QWidget):
         tab = QWidget()
         layout = QVBoxLayout()
 
+        query_date_layout = QHBoxLayout()
         self.query_entry_date = QLineEdit()
         self.query_entry_date.setPlaceholderText("Introduce tu consulta")
-        self.date_entry = QDateEdit()
-        self.date_entry.setCalendarPopup(True)
-        self.date_entry2 = QDateEdit()
-        self.date_entry2.setCalendarPopup(True)
-        self.response_text_date = QTextEdit()
-        self.response_text_date.setReadOnly(True)
         execute_button = QPushButton("Ejecutar Consulta")
         execute_button.clicked.connect(self.execute_query_with_date)
+        query_date_layout.addWidget(self.query_entry_date)
+        query_date_layout.addWidget(execute_button)
 
-        layout.addWidget(self.query_entry_date)
-        layout.addWidget(QLabel("Fecha inicial:"))
-        layout.addWidget(self.date_entry)
-        layout.addWidget(QLabel("Fecha final:"))
-        layout.addWidget(self.date_entry2)
-        layout.addWidget(execute_button)
+        date_layout = QHBoxLayout()
+        self.date_entry = QDateEdit()
+        self.date_entry.setCalendarPopup(True)
+        self.date_entry.setFixedWidth(120)
+        self.date_entry2 = QDateEdit()
+        self.date_entry2.setCalendarPopup(True)
+        self.date_entry2.setFixedWidth(120)
+        date_layout.addWidget(QLabel("Fecha inicial:"))
+        date_layout.addWidget(self.date_entry)
+        date_layout.addWidget(QLabel("Fecha final:"))
+        date_layout.addWidget(self.date_entry2)
+
+        self.response_text_date = QTextEdit()
+        self.response_text_date.setReadOnly(True)
+
         layout.addWidget(self.response_text_date)
+        layout.addLayout(query_date_layout)
+        layout.addLayout(date_layout)
         tab.setLayout(layout)
         self.tabs.addTab(tab, "Consulta con Fecha")
 
@@ -97,18 +115,61 @@ class RAGDefensaApp(QWidget):
         tab = QWidget()
         layout = QVBoxLayout()
 
-        scraping_button = QPushButton("Ejecutar Scraping")
-        scraping_button.clicked.connect(self.run_scraping)
+        crawl_button = QPushButton("Ejecutar el Crawler")
+        crawl_button.clicked.connect(self.run_scraping)
         migrate_button = QPushButton("Migrar Datos a ChromaDB")
         migrate_button.clicked.connect(self.migrate_data)
         evaluate_button = QPushButton("Evaluar Base de Datos")
         evaluate_button.clicked.connect(self.evaluate_data)
 
-        layout.addWidget(scraping_button)
         layout.addWidget(migrate_button)
         layout.addWidget(evaluate_button)
         tab.setLayout(layout)
         self.tabs.addTab(tab, "Opciones Avanzadas")
+
+    def create_documents_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout()
+
+        self.articles_table = QTableWidget()
+        self.articles_table.setColumnCount(1)
+        self.articles_table.setHorizontalHeaderLabels(["Titular"])
+        self.articles_table.horizontalHeader().setStretchLastSection(True)
+        layout.addWidget(self.articles_table)
+
+        nav_layout = QHBoxLayout()
+        self.prev_button = QPushButton("Anterior")
+        self.prev_button.clicked.connect(self.previous_page)
+        self.next_button = QPushButton("Siguiente")
+        self.next_button.clicked.connect(self.next_page)
+        nav_layout.addWidget(self.prev_button)
+        nav_layout.addWidget(self.next_button)
+
+        layout.addLayout(nav_layout)
+        tab.setLayout(layout)
+        self.tabs.addTab(tab, "Ver Documentos")
+        self.load_articles()
+
+    def load_articles(self):
+        articles = self.get_articles_from_db(data.get("table_name"))
+        start = self.current_page * self.articles_per_page
+        end = start + self.articles_per_page
+        self.articles_table.setRowCount(0)
+
+        for article in articles[start:end]:
+            row_position = self.articles_table.rowCount()
+            self.articles_table.insertRow(row_position)
+            self.articles_table.setItem(row_position, 0, QTableWidgetItem(article["titular"]))
+
+    def previous_page(self):
+        if self.current_page > 0:
+            self.current_page -= 1
+            self.load_articles()
+
+    def next_page(self):
+        self.current_page += 1
+        self.load_articles()
+
 
     def execute_query(self):
         question = self.query_entry.text()

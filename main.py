@@ -103,7 +103,7 @@ def process_article(article_data):
     titular_modificado = article_data["titular"].replace("'", "''")
 
     existing_article = cassandra.query_data(
-        table="noticias_tabulares",
+        table=data.get("table_name"),
         where_conditions={"titular": titular_modificado},
         fields=["titular"]
     )
@@ -114,7 +114,7 @@ def process_article(article_data):
         print(f"Insertando nuevo artículo: {article_data['titular']}")
 
         cassandra.insert_data(
-            table="noticias_tabulares",
+            table=data.get("table_name"),
             data={
                 "id": uuid.uuid4(),
                 "fuente": article_data["fuente"],
@@ -134,7 +134,7 @@ def process_article(article_data):
 # Función para migrar los articulos de Cassandra a Chroma
 def migrate_cassandra_to_chroma():
     all_articles = cassandra.get_all_entities(
-        table="noticias_tabulares"
+        table=data.get("table_name")
     )
 
     print(f"Se encontraron {len(all_articles)} artículos en Cassandra para migrar a Chroma.")
@@ -184,6 +184,13 @@ def crawl_and_store(url):
     print(f"Crawling {url}...")
     crawl_website(url, "noticias_defensa.csv")
     process_csv_file("noticias_defensa.csv")
+
+
+def get_articles_from_db(table):
+    print(f"Getting articles from {table}...")
+    articles = []
+    articles = cassandra.get_all_entities(table)
+    return articles
 
 
 # Funcion que ejecuta la evaluacion del proyecto
@@ -253,8 +260,9 @@ if __name__ == "__main__":
     try:
         app = QApplication(sys.argv)
         window = RAGDefensaApp(response_without_dates, response_with_dates, crawl_and_store,
-                               migrate_cassandra_to_chroma, test_evaluation)
+                               migrate_cassandra_to_chroma, test_evaluation, get_articles_from_db)
         window.show()
         sys.exit(app.exec())
     finally:
+        crawl_and_store(data.get("news_url"))
         cassandra.close()
