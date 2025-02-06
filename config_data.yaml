@@ -3,6 +3,7 @@ judge_model: "gemma2"
 news_url: "https://www.libertaddigital.com/defensa/"
 cassandra_host: "127.0.0.1"
 retrieved_docs: 2
+table_name: "noticias_tabulares"
 keyspace: "noticias"
 military_prompt: "Eres un asistente militar de defensa para tareas de respuesta a preguntas. Utiliza las siguientes piezas de contexto recuperado para responder a la pregunta. Si no sabes la respuesta, di que no la sabes. Usa un máximo de tres frases y mantén la respuesta concisa."
 assistant_prompt: "Eres un asistente para tareas de respuesta a preguntas. Utiliza las siguientes piezas de contexto recuperado para responder a la pregunta. Si no sabes la respuesta, di que no la sabes. Usa un máximo de tres frases y mantén la respuesta concisa."
