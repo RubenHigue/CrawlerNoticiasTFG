@@ -8,6 +8,36 @@ from PyQt6.QtCore import Qt
 import yaml
 from pathlib import Path
 
+from PyQt6.QtWidgets import QDialog
+
+
+class AdvancedOptionsWindow(QDialog):
+    def __init__(self, parent=None, run_scraping=None, migrate_data=None, evaluate_data=None):
+        super().__init__(parent)
+        self.setWindowTitle("Opciones Avanzadas")
+        self.setGeometry(200, 200, 400, 200)
+
+        layout = QVBoxLayout()
+
+        crawl_button = QPushButton("Ejecutar el Crawler")
+        if run_scraping:
+            crawl_button.clicked.connect(run_scraping)
+
+        migrate_button = QPushButton("Migrar Datos a ChromaDB")
+        if migrate_data:
+            migrate_button.clicked.connect(migrate_data)
+
+        evaluate_button = QPushButton("Evaluar Base de Datos")
+        if evaluate_data:
+            evaluate_button.clicked.connect(evaluate_data)
+
+        layout.addWidget(crawl_button)
+        layout.addWidget(migrate_button)
+        layout.addWidget(evaluate_button)
+
+        self.setLayout(layout)
+
+
 base_dir = Path(__file__).resolve().parent.parent
 
 with open(base_dir / "config_data.yaml", "r", encoding="utf-8") as file:
@@ -18,6 +48,7 @@ class RAGDefensaApp(QWidget):
     def __init__(self, response_without_dates, response_with_dates, crawl_and_store, migrate_cassandra_to_chroma,
                  test_evaluation, get_articles_from_db):
         super().__init__()
+        self.advanced_window = None
         self.response_without_dates = response_without_dates
         self.response_with_dates = response_with_dates
         self.crawl_and_store = crawl_and_store
@@ -40,9 +71,14 @@ class RAGDefensaApp(QWidget):
         self.logo_label.setPixmap(pixmap)
         self.title_label = QLabel("RAG de Defensa")
         self.title_label.setStyleSheet("font-size: 18px; font-weight: bold; color: white;")
+        self.menu_label = QLabel()
+        pixmap = QPixmap("./Images/base-de-datos-2.png").scaled(30, 30, Qt.AspectRatioMode.KeepAspectRatio)
+        self.menu_label.setPixmap(pixmap)
+        self.menu_label.mousePressEvent = self.open_advanced_options
 
         header_layout.addWidget(self.logo_label)
         header_layout.addWidget(self.title_label, alignment=Qt.AlignmentFlag.AlignCenter)
+        header_layout.addWidget(self.menu_label, alignment=Qt.AlignmentFlag.AlignCenter)
 
         header_widget = QWidget()
         header_widget.setLayout(header_layout)
@@ -54,7 +90,6 @@ class RAGDefensaApp(QWidget):
         self.create_query_tab()
         self.create_query_with_date_tab()
         self.create_documents_tab()
-        self.create_advanced_tab()
 
         main_layout.addWidget(self.tabs)
         self.setLayout(main_layout)
@@ -107,27 +142,10 @@ class RAGDefensaApp(QWidget):
         self.response_text_date.setReadOnly(True)
 
         layout.addWidget(self.response_text_date)
-        layout.addLayout(query_date_layout)
         layout.addLayout(date_layout)
+        layout.addLayout(query_date_layout)
         tab.setLayout(layout)
         self.tabs.addTab(tab, "Consulta con Fecha")
-
-    def create_advanced_tab(self):
-        tab = QWidget()
-        layout = QVBoxLayout()
-
-        crawl_button = QPushButton("Ejecutar el Crawler")
-        crawl_button.clicked.connect(self.run_scraping)
-        migrate_button = QPushButton("Migrar Datos a ChromaDB")
-        migrate_button.clicked.connect(self.migrate_data)
-        evaluate_button = QPushButton("Evaluar Base de Datos")
-        evaluate_button.clicked.connect(self.evaluate_data)
-
-        layout.addWidget(crawl_button)
-        layout.addWidget(migrate_button)
-        layout.addWidget(evaluate_button)
-        tab.setLayout(layout)
-        self.tabs.addTab(tab, "Opciones Avanzadas")
 
     def create_documents_tab(self):
         tab = QWidget()
@@ -151,6 +169,23 @@ class RAGDefensaApp(QWidget):
         tab.setLayout(layout)
         self.tabs.addTab(tab, "Ver Documentos")
         self.load_articles()
+
+    def open_advanced_options(self, event):
+        self.advanced_window = AdvancedOptionsWindow(
+            self,
+            run_scraping=self.run_scraping,
+            migrate_data=self.migrate_data,
+            evaluate_data=self.evaluate_data
+        )
+        self.advanced_window.exec()
+
+    def show_message(self, title, message):
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Icon.Information)
+        msg.setWindowTitle(title)
+        msg.setText(message)
+        msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+        msg.exec()
 
     def load_articles(self):
         articles = self.get_articles_from_db(data.get("table_name"))
@@ -200,14 +235,6 @@ class RAGDefensaApp(QWidget):
         print("Ejecutando scraping...")
         self.crawl_and_store(data.get("news_url"))
         self.show_message("Scraping", "Scraping terminado")
-
-    def show_message(self, title, message):
-        msg = QMessageBox()
-        msg.setIcon(QMessageBox.Icon.Information)
-        msg.setWindowTitle(title)
-        msg.setText(message)
-        msg.setStandardButtons(QMessageBox.StandardButton.Ok)  # Botón "OK"
-        msg.exec()
 
     def migrate_data(self):
         print("Migrando datos a ChromaDB...")
