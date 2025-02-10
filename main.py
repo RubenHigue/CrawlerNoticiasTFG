@@ -1,3 +1,4 @@
+import asyncio
 import csv
 import sys
 import uuid
@@ -140,21 +141,23 @@ def migrate_cassandra_to_chroma():
     print(f"Se encontraron {len(all_articles)} artículos en Cassandra para migrar a Chroma.")
 
     for article in all_articles:
-        print(f"Migrando artículo con ID: {article['id']} - Titular: {article['titular']}")
 
-        embedding = embedding_model.encode(article["noticia"])
-        if article["fecha"] != "Fecha no encontrada":
-            chroma.insert_article(
-                doc_id=str(article["id"]),
-                metadata={
-                    "fuente": article["fuente"],
-                    "fecha": datetime.strptime(article["fecha"], "%d/%m/%Y").timestamp(),
-                    "titular": article["titular"],
-                    "url": article["url"]
-                },
-                content=article["noticia"],
-                embedding=embedding
-            )
+        if not chroma.exists_by_id(str(article["id"])):
+            print(f"Migrando artículo con ID: {article['id']} - Titular: {article['titular']}")
+
+            embedding = embedding_model.encode(article["noticia"])
+            if article["fecha"] != "Fecha no encontrada":
+                chroma.insert_article(
+                    doc_id=str(article["id"]),
+                    metadata={
+                        "fuente": article["fuente"],
+                        "fecha": datetime.strptime(article["fecha"], "%d/%m/%Y").timestamp(),
+                        "titular": article["titular"],
+                        "url": article["url"]
+                    },
+                    content=article["noticia"],
+                    embedding=embedding
+                )
 
     print("Migración completa. Todos los artículos han sido insertados en Chroma.")
 
@@ -258,10 +261,15 @@ async def test_evaluation():
 # Ejecutar el proceso
 if __name__ == "__main__":
     try:
-        app = QApplication(sys.argv)
-        window = RAGDefensaApp(response_without_dates, response_with_dates, crawl_and_store,
-                               migrate_cassandra_to_chroma, test_evaluation, get_articles_from_db)
-        window.show()
-        sys.exit(app.exec())
+        migrate_cassandra_to_chroma()
+        if data.get("execution_mode") == "production":
+            app = QApplication(sys.argv)
+            window = RAGDefensaApp(response_without_dates, response_with_dates, crawl_and_store,
+                                   migrate_cassandra_to_chroma, test_evaluation, get_articles_from_db)
+            window.show()
+            sys.exit(app.exec())
+        elif data.get("execution_mode") == "test":
+            print("Evaluando base de datos...")
+            asyncio.run(test_evaluation())
     finally:
         cassandra.close()
