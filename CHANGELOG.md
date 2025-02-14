@@ -36,4 +36,48 @@ based on Open-Source Chinese Military News"
 
 - Implementación de la BD Cassandra
 - Implementación de la BD ChromaDB
-- 
+
+## Semana 6 (9/12/2024)
+
+- Arreglos en el almacenamiento de las noticias
+- Implementación final del modelo Ollama como LLM
+
+## Semana 7 (16/12/2024)
+
+- Migración de los articulos de la BD de Cassandra a Chroma para su uso en el sistema RAG
+
+## Semana 8 (22/12/2024)
+
+- Añadido el metadato de fecha para crear un contexto más preciso para el LLM
+- Implementación del filtrado de contexto por rangos de fecha y fecha aproximada
+
+## Semana 9 (13/1/2025)
+
+- Introducción de la biblioteca RAGAS para la evaluación del sistema
+- Creado un Wrapper para la clase de evaluación de RAGAS para poder usar modelos de Ollama
+
+## Semana 10 (20/1/2025)
+
+- Cambio en la generación de los embeddings por un modelo Español
+- Cambio en la generación de los embeddings por un modelo multiligüe
+
+## Semana 11 (27/1/2025)
+
+- Evaluación del sistema con los distintos embeddings
+
+## Semana 12 (3/2/2025)
+
+- Paso de parámetros para el uso del sistema mediante fichero de configuración
+- Adaptación del numero de textos de contexto recibidos para pruebas de evaluación
+- Adaptación del prompt generado por la biblioteca RAGAS para que los resultados se adapten al formato requerido
+- Diseño y desarrollo de la interfaz de usuario
+- Cambio de biblioteca en la IU por fallos de compatibilidad
+
+## Semana 13 (10/2/2025)
+
+- Añadidos iconos a la interfaz
+- Nuevos modos de ejecución creados, modo evaluación y producción
+
+
+
+
