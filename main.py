@@ -1,4 +1,6 @@
 import asyncio
+import re
+
 import csv
 import sys
 import uuid
@@ -184,10 +186,16 @@ def process_csv_file(csv_file_path):
 
 
 # Funcion que ejecuta el crawler
-def crawl_and_store(url):
-    print(f"Crawling {url}...")
-    crawl_website(url, "noticias_defensa.csv")
-    process_csv_file("noticias_defensa.csv")
+def crawl_and_store(urls):
+    for url in urls:
+        print(f"Crawling {url}...")
+
+        # Extraer solo el nombre del dominio sin "https://www."
+        domain = re.sub(r"https?://(www\.)?", "", url).split("/")[0]
+
+        filename = f"csv/noticias_defensa_{domain}.csv"
+        crawl_website(url, filename)
+        process_csv_file(filename)
 
 
 def get_articles_from_db(table):

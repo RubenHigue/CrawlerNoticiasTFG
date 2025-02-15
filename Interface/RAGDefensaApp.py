@@ -42,6 +42,7 @@ base_dir = Path(__file__).resolve().parent.parent
 
 with open(base_dir / "config_data.yaml", "r", encoding="utf-8") as file:
     data = yaml.safe_load(file)
+    urls = data["news_url"].split(", ")
 
 
 class RAGDefensaApp(QWidget):
@@ -233,7 +234,7 @@ class RAGDefensaApp(QWidget):
 
     def run_scraping(self):
         print("Ejecutando scraping...")
-        self.crawl_and_store(data.get("news_url"))
+        self.crawl_and_store(urls)
         self.show_message("Scraping", "Scraping terminado")
 
     def migrate_data(self):
