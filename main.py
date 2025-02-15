@@ -142,7 +142,7 @@ def migrate_cassandra_to_chroma():
 
     for article in all_articles:
 
-        if not chroma.exists_by_id(str(article["id"])):
+        if not chroma.exists_by_title(article["titular"]):
             print(f"Migrando artículo con ID: {article['id']} - Titular: {article['titular']}")
 
             embedding = embedding_model.encode(article["noticia"])
@@ -158,7 +158,8 @@ def migrate_cassandra_to_chroma():
                     content=article["noticia"],
                     embedding=embedding
                 )
-
+        else:
+            print(f"El articulo con titular: {article['titular']} ya está en la base de datos ChromaDB.")
     print("Migración completa. Todos los artículos han sido insertados en Chroma.")
 
 

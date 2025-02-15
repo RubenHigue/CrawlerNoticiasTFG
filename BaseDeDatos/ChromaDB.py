@@ -85,3 +85,16 @@ class ChromaDB:
                 ]
             }
         )
+
+    def exists_by_title(self, titular_):
+        """
+        Verifica si un artículo con el título dado existe en la base de datos.
+        :param titular_: Titular del artículo a buscar.
+        :return: True si el artículo existe, False en caso contrario.
+        """
+        results = self.collection.query(
+            query_texts=[titular_],
+            n_results=1,
+            where={"titular": titular_}
+        )
+        return results.get("documents", []) != [[]]
