@@ -1,6 +1,6 @@
 llm_model: "llama3.2"
 judge_model: "mistral"
-news_url: "https://www.libertaddigital.com/defensa/"
+news_url: "https://www.libertaddigital.com/defensa/, https://www.eldebate.com/espana/defensa/"
 cassandra_host: "127.0.0.1"
 retrieved_docs: 2
 execution_mode: "production"
