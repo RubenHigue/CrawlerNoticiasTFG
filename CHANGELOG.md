@@ -77,6 +77,7 @@ based on Open-Source Chinese Military News"
 
 - Añadidos iconos a la interfaz
 - Nuevos modos de ejecución creados, modo evaluación y producción
+- Añadido nuevo dominio para la extracción de noticias
 
 
 
