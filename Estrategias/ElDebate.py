@@ -18,9 +18,10 @@ class ElDebate(InterfazEstrategia):
         fecha_hora = fecha_hora_tag.get_text(strip=True) if fecha_hora_tag else "Fecha no encontrada"
         fecha, hora = fecha_hora.split(" ") if " " in fecha_hora else (fecha_hora, "")
 
-        autor_tag = article_soup.find("span", class_="author")
-        autor_nombre = autor_tag.get_text(strip=True) if autor_tag else "Nombre no encontrado"
-        autor_url = "URL no encontrada"
+        autor_tag = article_soup.find("a", class_="c-detail__author__name")
+        autor_nombre = autor_tag.get_text(strip=True) if (autor_tag and autor_tag.get_text()) else ("Nombre no "
+                                                                                                    "encontrado")
+        autor_url = autor_tag["href"] if autor_tag and "href" in autor_tag.attrs else "URL no encontrada"
 
         titular_tag = article_soup.find("div", class_="default-title")
         titular = titular_tag.find("h1").get_text(strip=True) if titular_tag and titular_tag.find("h1") else "Titular no encontrado"
