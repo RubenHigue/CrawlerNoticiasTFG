@@ -79,6 +79,11 @@ based on Open-Source Chinese Military News"
 - Nuevos modos de ejecución creados, modo evaluación y producción
 - Añadido nuevo dominio para la extracción de noticias
 
+## Semana 14 (17/2/2025)
+
+- Insercción de los articulos en la BD Cassandra
+- Actualización de la extracción de las nuevas noticias para que se adecue al formato del resto
+
 
 
 
