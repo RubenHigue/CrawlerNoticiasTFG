@@ -16,7 +16,11 @@ class ElDebate(InterfazEstrategia):
         fuente = "ElDebate.com"
         fecha_hora_tag = article_soup.find("time")
         fecha_hora = fecha_hora_tag.get_text(strip=True) if fecha_hora_tag else "Fecha no encontrada"
-        fecha, hora = fecha_hora.split(" ") if " " in fecha_hora else (fecha_hora, "")
+
+        if " " in fecha_hora:
+            fecha, hora = fecha_hora.split(" ", 1)
+        else:
+            fecha, hora = fecha_hora, " "
 
         autor_tag = article_soup.find("a", class_="c-detail__author__name")
         autor_nombre = autor_tag.get_text(strip=True) if (autor_tag and autor_tag.get_text()) else ("Nombre no "
