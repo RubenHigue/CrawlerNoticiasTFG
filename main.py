@@ -1,6 +1,8 @@
 import asyncio
 import re
 
+import pandas as pd
+
 import csv
 import sys
 import uuid
@@ -205,54 +207,25 @@ def get_articles_from_db(table):
     return articles
 
 
+# Funcion para cargar los datos de evaluación
+def load_samples_from_csv(file_path):
+    df = pd.read_csv(file_path)
+    samples = []
+    for _, row in df.iterrows():
+        sample = SingleTurnSample(
+            user_input=row["user_input"],
+            response=row["response"],
+            reference=row["reference"],
+            retrieved_contexts=row["retrieved_contexts"]
+        )
+        samples.append(sample)
+    return samples
+
+
 # Funcion que ejecuta la evaluacion del proyecto
 async def test_evaluation():
-    user_input = "Que modelo quiere el ejercito del aire para sustituir a los F18"
-    query_embedding = embedding_model.encode(user_input).tolist()
-    relevant_news = chroma.search(query_embedding=query_embedding, top_k=data.get("retrieved_docs"))
-    raw_context = (relevant_news.get("documents"))
-    metadata = relevant_news.get("metadatas")
-    context = []
-    for news, meta in zip(raw_context[0], metadata[0]):
-        context.append("La fecha del articulo es: " + str(meta['fecha']) + " " + str(news))
-    answer = generate_response_with_ollama(user_input, str(context))
-    print(context)
-    answer = answer.get('content')
-    print(answer)
-
-    '''
-    dataset = [
-        {
-            "user_input": user_input,
-            "response": "El modelo que el Ejército del Aire está contemplando para sustituir a los F-18 es el F-35.",
-            "reference": answer,
-            "retrieved_contexts": context,
-        }
-    ]
-    
-    evaluation_dataset = EvaluationDataset.from_list(dataset)
-
-    llm = ChatOllama(model="gemma2")
-    embeddings = OllamaEmbeddings(model="gemma2")
-    #evaluator_llm = LangchainLLMWrapper(llm)
-    run_config=RunConfig(timeout=6000)
-    result = evaluate(dataset=evaluation_dataset, metrics=[LLMContextRecall()], llm=llm, embeddings=embeddings,run_config=run_config)
-    print(result)
-    '''
-
-    sample = SingleTurnSample(
-        user_input=user_input,
-        response=answer,
-        reference="El modelo que el Ejército del Aire está contemplando para sustituir a los F-18 es el F-35.",
-        retrieved_contexts=context,
-    )
-
-    sample2 = SingleTurnSample(
-        user_input=user_input,
-        response=answer,
-        reference="El modelo que el Ejército del Aire está contemplando para sustituir a los F-18 es el F-35.",
-        retrieved_contexts=context,
-    )
+    file_path = "csv/evaluacion_tfg.csv"
+    samples = load_samples_from_csv(file_path)
 
     run_config = RunConfig(max_retries=1)
 
@@ -261,10 +234,14 @@ async def test_evaluation():
     context_recall = LLMContextRecall(llm=evaluator_llm)
     context_precision = LLMContextPrecisionWithoutReference(llm=evaluator_llm)
 
-    print("Context Recall Results: ")
-    await (context_recall.single_turn_ascore(sample))
-    print("Context Precision Results: ")
-    await context_precision.single_turn_ascore(sample2)
+    for sample in samples:
+        print("Evaluating sample:", sample.user_input)
+
+        print("Context Recall Results: ")
+        await context_recall.single_turn_ascore(sample)
+
+        print("Context Precision Results: ")
+        await context_precision.single_turn_ascore(sample)
 
 
 # Ejecutar el proceso
