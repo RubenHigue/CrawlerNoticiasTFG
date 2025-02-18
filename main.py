@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 
 from ragas import RunConfig
 from ragas.dataset_schema import SingleTurnSample
-from ragas.metrics import LLMContextRecall, LLMContextPrecisionWithoutReference
+from ragas.metrics import LLMContextRecall, LLMContextPrecisionWithoutReference, Faithfulness
 
 import ollama
 
@@ -233,6 +233,7 @@ async def test_evaluation():
 
     context_recall = LLMContextRecall(llm=evaluator_llm)
     context_precision = LLMContextPrecisionWithoutReference(llm=evaluator_llm)
+    faithfulness = Faithfulness(llm=evaluator_llm)
 
     for sample in samples:
         print("Evaluating sample:", sample.user_input)
@@ -242,6 +243,9 @@ async def test_evaluation():
 
         print("Context Precision Results: ")
         await context_precision.single_turn_ascore(sample)
+
+        print("Faithfulness Results: ")
+        await faithfulness.single_turn_ascore(sample)
 
 
 # Ejecutar el proceso
