@@ -59,9 +59,9 @@ class BaseLLMOllama(BaseRagasLLM, ABC):
         generations = []
 
         if prompt.find("ContextRecallClassification") != -1:
-            prompt = prompt + (data.get("prompt_generico"," ") + data.get("prompt_recall"," "))
+            prompt = prompt + (data.get("prompt_generico", " ") + data.get("prompt_recall", " "))
         else:
-            prompt = prompt + (data.get("prompt_generico"," ") + data.get("prompt_precision"," "))
+            prompt = prompt + (data.get("prompt_generico", " ") + data.get("prompt_precision", " "))
 
         for _ in range(n):
             response = await to_thread(

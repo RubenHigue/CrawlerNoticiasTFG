@@ -242,8 +242,8 @@ async def test_evaluation():
 
     sample = SingleTurnSample(
         user_input=user_input,
-        response="El modelo que el Ejército del Aire está contemplando para sustituir a los F-18 es el F-35.",
-        reference=answer,
+        response=answer,
+        reference="El modelo que el Ejército del Aire está contemplando para sustituir a los F-18 es el F-35.",
         retrieved_contexts=context,
     )
 
@@ -254,7 +254,7 @@ async def test_evaluation():
         retrieved_contexts=context,
     )
 
-    run_config = RunConfig(max_retries=3)
+    run_config = RunConfig(max_retries=1)
 
     evaluator_llm = BaseLLMOllama(model_name=data.get("judge_model"), run_config=run_config)
 
