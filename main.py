@@ -1,3 +1,4 @@
+import ast
 import asyncio
 import re
 
@@ -216,7 +217,7 @@ def load_samples_from_csv(file_path):
             user_input=row["user_input"],
             response=row["response"],
             reference=row["reference"],
-            retrieved_contexts=row["retrieved_contexts"]
+            retrieved_contexts=ast.literal_eval(row["retrieved_contexts"]) if isinstance(row["retrieved_contexts"], str) else row["retrieved_contexts"]
         )
         samples.append(sample)
     return samples
