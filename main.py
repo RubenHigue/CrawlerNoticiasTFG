@@ -14,7 +14,11 @@ from dotenv import load_dotenv
 
 from ragas import RunConfig
 from ragas.dataset_schema import SingleTurnSample
-from ragas.metrics import LLMContextRecall, LLMContextPrecisionWithoutReference, Faithfulness
+from ragas.metrics import LLMContextRecall, LLMContextPrecisionWithoutReference, Faithfulness, context_recall, \
+    context_precision, faithfulness
+from ragas import evaluate
+from ragas.evaluation import EvaluationDataset
+from fuzzywuzzy import fuzz
 
 import ollama
 
@@ -217,7 +221,9 @@ def load_samples_from_csv(file_path):
             user_input=row["user_input"],
             response=row["response"],
             reference=row["reference"],
-            retrieved_contexts=ast.literal_eval(row["retrieved_contexts"]) if isinstance(row["retrieved_contexts"], str) else row["retrieved_contexts"]
+            retrieved_contexts=ast.literal_eval(row["retrieved_contexts"]) if isinstance(row["retrieved_contexts"],
+                                                                                         str) else row[
+                "retrieved_contexts"]
         )
         samples.append(sample)
     return samples
@@ -236,6 +242,13 @@ async def test_evaluation():
     context_precision = LLMContextPrecisionWithoutReference(llm=evaluator_llm)
     faithfulness = Faithfulness(llm=evaluator_llm)
 
+    '''
+    OpenAI RAGAS
+    dataset = EvaluationDataset(samples)
+    results = evaluate(dataset, [context_recall, context_precision, faithfulness])
+    print(results)
+    '''
+
     for sample in samples:
         print("Evaluating sample:", sample.user_input)
 
@@ -249,11 +262,58 @@ async def test_evaluation():
         await faithfulness.single_turn_ascore(sample)
 
 
+# Función para consultar al LLM la precision y el recall del contexto
+def query_llm_for_precision_recall(context, reference):
+    prompt = f"Contexto: {context} " + f"Referencia: {reference}" + data.get('prompt_eval_manual')
+
+    try:
+        response = ollama.chat(
+            model=data.get("judge_model"),
+            messages=[{'role': 'user', 'content': prompt}]
+        )
+
+        result = response.get('message')
+        result = result['content'].strip()
+        print(result)
+        precision, recall = map(float, result.split(',')[:2])
+        return precision, recall
+    except Exception as e:
+        print(f"Error al consultar LLM: {e}")
+        return None, None
+
+
+# Función de evaluación sin RAGAS
+def evaluate_dataset_with_llm(csv_path):
+    df = pd.read_csv(csv_path)
+    precisions, recalls = [], []
+
+    for _, row in df.iterrows():
+        context = " ".join(eval(row["retrieved_contexts"])) if isinstance(row["retrieved_contexts"], str) else row[
+            "retrieved_contexts"]
+        reference = row["reference"]
+
+        precision, recall = query_llm_for_precision_recall(context, reference)
+
+        if precision is not None and recall is not None:
+            precisions.append(precision)
+            recalls.append(recall)
+
+            print(f"Consulta: {row['user_input']}")
+            print(f"Precisión: {precision:.2f}, Recall: {recall:.2f}")
+            print("-" * 50)
+
+    avg_precision = sum(precisions) / len(precisions) if precisions else 0
+    avg_recall = sum(recalls) / len(recalls) if recalls else 0
+
+    print(f"\nPrecisión promedio: {avg_precision:.2f}")
+    print(f"Recall promedio: {avg_recall:.2f}")
+
+
 # Ejecutar el proceso
 if __name__ == "__main__":
     try:
-        migrate_cassandra_to_chroma()
         if data.get("execution_mode") == "production":
+            migrate_cassandra_to_chroma()
             app = QApplication(sys.argv)
             window = RAGDefensaApp(response_without_dates, response_with_dates, crawl_and_store,
                                    migrate_cassandra_to_chroma, test_evaluation, get_articles_from_db)
@@ -261,6 +321,7 @@ if __name__ == "__main__":
             sys.exit(app.exec())
         elif data.get("execution_mode") == "test":
             print("Evaluando base de datos...")
-            asyncio.run(test_evaluation())
+            #asyncio.run(test_evaluation())
+            evaluate_dataset_with_llm(data.get("test_data"))
     finally:
         cassandra.close()
