@@ -292,6 +292,25 @@ def query_llm_for_precision_recall(context, reference):
         return None, None
 
 
+# Función para la evaluación de la fidelidad de las respuestas
+def check_faithfulness_with_ollama(answer, context):
+
+    prompt = f"Contexto: {context} " + f"Respuesta: {answer}" + data.get('prompt_eval_faith')
+
+    try:
+        response = ollama.chat(
+            model=data.get("judge_model"),
+            messages=[{'role': 'user', 'content': prompt}]
+        )
+
+        result = response.get('message')['content'].strip()
+
+        return result
+    except Exception as e:
+        print(f"Error al consultar Ollama: {e}")
+        return None
+
+
 # Función de evaluación sin RAGAS
 def evaluate_dataset_with_llm(csv_path):
     df = pd.read_csv(csv_path)
@@ -301,8 +320,10 @@ def evaluate_dataset_with_llm(csv_path):
         context = " ".join(eval(row["retrieved_contexts"])) if isinstance(row["retrieved_contexts"], str) else row[
             "retrieved_contexts"]
         reference = row["reference"]
+        response = row["response"]
 
         precision, recall = query_llm_for_precision_recall(context, reference)
+        faith = check_faithfulness_with_ollama(response, context)
 
         if precision is not None and recall is not None:
             precisions.append(precision)
@@ -310,6 +331,7 @@ def evaluate_dataset_with_llm(csv_path):
 
             print(f"Consulta: {row['user_input']}")
             print(f"Precisión: {precision:.2f}, Recall: {recall:.2f}")
+            print(f"Faithfulness: {faith}")
             print("-" * 50)
 
     avg_precision = sum(precisions) / len(precisions) if precisions else 0
