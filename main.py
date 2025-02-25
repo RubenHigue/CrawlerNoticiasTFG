@@ -264,18 +264,28 @@ async def test_evaluation():
 
 # Función para consultar al LLM la precision y el recall del contexto
 def query_llm_for_precision_recall(context, reference):
-    prompt = f"Contexto: {context} " + f"Referencia: {reference}" + data.get('prompt_eval_manual')
+    promptPrecision = f"Contexto: {context} " + f"Referencia: {reference}" + data.get('prompt_eval_precision')
+    promptRecall = f"Contexto: {context} " + f"Referencia: {reference}" + data.get('prompt_eval_recall')
 
     try:
-        response = ollama.chat(
+        responsePrecision = ollama.chat(
             model=data.get("judge_model"),
-            messages=[{'role': 'user', 'content': prompt}]
+            messages=[{'role': 'user', 'content': promptPrecision}]
         )
 
-        result = response.get('message')
-        result = result['content'].strip()
-        print(result)
-        precision, recall = map(float, result.split(',')[:2])
+        responseRecall = ollama.chat(
+            model=data.get("judge_model"),
+            messages=[{'role': 'user', 'content': promptRecall}]
+        )
+
+        resultPrecision = responsePrecision.get('message')['content'].strip()
+        #print(f'Precision: {resultPrecision}')
+
+        resultRecall = responseRecall.get('message')['content'].strip()
+        #print(f'Recall: {resultRecall}')
+
+        precision = float(re.findall(r'\d+\.\d+', resultPrecision)[0])
+        recall = float(re.findall(r'\d+\.\d+', resultRecall)[0])
         return precision, recall
     except Exception as e:
         print(f"Error al consultar LLM: {e}")
