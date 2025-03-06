@@ -279,10 +279,10 @@ def query_llm_for_precision_recall(context, reference):
         )
 
         resultPrecision = responsePrecision.get('message')['content'].strip()
-        #print(f'Precision: {resultPrecision}')
+        # print(f'Precision: {resultPrecision}')
 
         resultRecall = responseRecall.get('message')['content'].strip()
-        #print(f'Recall: {resultRecall}')
+        # print(f'Recall: {resultRecall}')
 
         precision = float(re.findall(r'\d+\.\d+', resultPrecision)[0])
         recall = float(re.findall(r'\d+\.\d+', resultRecall)[0])
@@ -292,9 +292,38 @@ def query_llm_for_precision_recall(context, reference):
         return None, None
 
 
+# Función para consultar al LLM la FactualCorrectness y la similarity del contexto
+def query_llm_for_factual_correctness_similarity(answer, reference):
+    promptFactualCorrectness = f"Respuesta: {answer} " + f"Referencia: {reference}" + data.get('prompt_eval_factual_correctness')
+    promptSimilarity = f"Respuesta: {answer} " + f"Referencia: {reference}" + data.get('prompt_eval_similarity')
+
+    try:
+        responseFactualCorrectness = ollama.chat(
+            model=data.get("judge_model"),
+            messages=[{'role': 'user', 'content': promptFactualCorrectness}]
+        )
+
+        responseSimilarity = ollama.chat(
+            model=data.get("judge_model"),
+            messages=[{'role': 'user', 'content': promptSimilarity}]
+        )
+
+        resultFactualCorrectness = responseFactualCorrectness.get('message')['content'].strip()
+        # print(f'FactualCorrectness: {resultFactualCorrectness}')
+
+        resultSimilarity = responseSimilarity.get('message')['content'].strip()
+        # print(f'Similarity: {resultSimilarity}')
+
+        factual_correctness = float(re.findall(r'\d+\.\d+', resultFactualCorrectness)[0])
+        similarity = float(re.findall(r'\d+\.\d+', resultSimilarity)[0])
+        return factual_correctness, similarity
+    except Exception as e:
+        print(f"Error al consultar LLM: {e}")
+        return None, None
+
+
 # Función para la evaluación de la fidelidad de las respuestas
 def check_faithfulness_with_ollama(answer, context):
-
     prompt = f"Contexto: {context} " + f"Respuesta: {answer}" + data.get('prompt_eval_faith')
 
     try:
@@ -311,34 +340,62 @@ def check_faithfulness_with_ollama(answer, context):
         return None
 
 
+# Funcion para calcular el Recall en función de las referencias de los textos.
+def compute_context_recall(reference_context, retrieved_contexts):
+    if not reference_context or not retrieved_contexts:
+        return 0.0
+
+    found_count = sum(1 for fragment in reference_context if fragment.lower() in retrieved_contexts.lower())
+
+    recall = found_count / len(reference_context)
+    return recall
+
+
 # Función de evaluación sin RAGAS
 def evaluate_dataset_with_llm(csv_path):
     df = pd.read_csv(csv_path)
-    precisions, recalls = [], []
+    precisions, recalls, realrecalls, fact_correctness, similarities = [], [], [], [], []
 
     for _, row in df.iterrows():
         context = " ".join(eval(row["retrieved_contexts"])) if isinstance(row["retrieved_contexts"], str) else row[
             "retrieved_contexts"]
         reference = row["reference"]
         response = row["response"]
+        reference_response = row["reference"]
+        reference_context = ast.literal_eval(row["reference_context"]) if isinstance(row["reference_context"], str) else \
+            row["reference_context"]
 
         precision, recall = query_llm_for_precision_recall(context, reference)
+        factualcorrectness, similarity = query_llm_for_factual_correctness_similarity(response, reference_response)
+        recallreal = compute_context_recall(reference_context, context)
         faith = check_faithfulness_with_ollama(response, context)
 
-        if precision is not None and recall is not None:
+        if precision is not None and recall is not None and factualcorrectness is not None and similarity is not None:
             precisions.append(precision)
             recalls.append(recall)
+            realrecalls.append(recallreal)
+            fact_correctness.append(factualcorrectness)
+            similarities.append(similarity)
 
             print(f"Consulta: {row['user_input']}")
             print(f"Precisión: {precision:.2f}, Recall: {recall:.2f}")
             print(f"Faithfulness: {faith}")
+            print(f"Real Recall: {recallreal:.2f}")
+            print(f"Factual Correctness: {factualcorrectness:.2f}")
+            print(f"Similarity: {similarity:.2f}")
             print("-" * 50)
 
     avg_precision = sum(precisions) / len(precisions) if precisions else 0
     avg_recall = sum(recalls) / len(recalls) if recalls else 0
+    avg_realrecall = sum(realrecalls) / len(realrecalls) if realrecalls else 0
+    avg_fact_correctness = sum(fact_correctness) / len(fact_correctness) if fact_correctness else 0
+    avg_similarities = sum(similarities) / len(similarities) if similarities else 0
 
     print(f"\nPrecisión promedio: {avg_precision:.2f}")
     print(f"Recall promedio: {avg_recall:.2f}")
+    print(f"Recall real promedio: {avg_realrecall:.2f}")
+    print(f"Factual correctness promedio: {avg_fact_correctness:.2f}")
+    print(f"Similarity promedio: {avg_similarities:.2f}")
 
 
 # Ejecutar el proceso
@@ -353,7 +410,7 @@ if __name__ == "__main__":
             sys.exit(app.exec())
         elif data.get("execution_mode") == "test":
             print("Evaluando base de datos...")
-            #asyncio.run(test_evaluation())
+            # asyncio.run(test_evaluation())
             evaluate_dataset_with_llm(data.get("test_data"))
     finally:
         cassandra.close()
