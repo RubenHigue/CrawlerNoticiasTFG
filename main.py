@@ -356,7 +356,7 @@ def evaluate_dataset_with_llm(csv_path):
     df = pd.read_csv(csv_path)
     precisions, recalls, realrecalls, fact_correctness, similarities = [], [], [], [], []
 
-    for _, row in df.iterrows():
+    for index, row in df.iterrows():
         context = " ".join(eval(row["retrieved_contexts"])) if isinstance(row["retrieved_contexts"], str) else row[
             "retrieved_contexts"]
         reference = row["reference"]
@@ -377,6 +377,13 @@ def evaluate_dataset_with_llm(csv_path):
             fact_correctness.append(factualcorrectness)
             similarities.append(similarity)
 
+            df.at[index, "precision"] = precision
+            df.at[index, "recall"] = recall
+            df.at[index, "real_recall"] = recallreal
+            df.at[index, "factual_correctness"] = factualcorrectness
+            df.at[index, "similarity"] = similarity
+            df.at[index, "faithfulness"] = faith
+
             print(f"Consulta: {row['user_input']}")
             print(f"Precisión: {precision:.2f}, Recall: {recall:.2f}")
             print(f"Faithfulness: {faith}")
@@ -384,6 +391,8 @@ def evaluate_dataset_with_llm(csv_path):
             print(f"Factual Correctness: {factualcorrectness:.2f}")
             print(f"Similarity: {similarity:.2f}")
             print("-" * 50)
+
+            df.to_csv(csv_path, index=False)
 
     avg_precision = sum(precisions) / len(precisions) if precisions else 0
     avg_recall = sum(recalls) / len(recalls) if recalls else 0
