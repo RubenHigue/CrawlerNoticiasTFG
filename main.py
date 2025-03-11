@@ -16,9 +16,7 @@ from ragas import RunConfig
 from ragas.dataset_schema import SingleTurnSample
 from ragas.metrics import LLMContextRecall, LLMContextPrecisionWithoutReference, Faithfulness, context_recall, \
     context_precision, faithfulness
-from ragas import evaluate
-from ragas.evaluation import EvaluationDataset
-from fuzzywuzzy import fuzz
+from sklearn.metrics.pairwise import cosine_similarity
 
 import ollama
 
@@ -294,7 +292,8 @@ def query_llm_for_precision_recall(context, reference):
 
 # Función para consultar al LLM la FactualCorrectness y la similarity del contexto
 def query_llm_for_factual_correctness_similarity(answer, reference):
-    promptFactualCorrectness = f"Respuesta: {answer} " + f"Referencia: {reference}" + data.get('prompt_eval_factual_correctness')
+    promptFactualCorrectness = f"Respuesta: {answer} " + f"Referencia: {reference}" + data.get(
+        'prompt_eval_factual_correctness')
     promptSimilarity = f"Respuesta: {answer} " + f"Referencia: {reference}" + data.get('prompt_eval_similarity')
 
     try:
@@ -303,19 +302,18 @@ def query_llm_for_factual_correctness_similarity(answer, reference):
             messages=[{'role': 'user', 'content': promptFactualCorrectness}]
         )
 
-        responseSimilarity = ollama.chat(
-            model=data.get("judge_model"),
-            messages=[{'role': 'user', 'content': promptSimilarity}]
-        )
-
         resultFactualCorrectness = responseFactualCorrectness.get('message')['content'].strip()
         # print(f'FactualCorrectness: {resultFactualCorrectness}')
 
-        resultSimilarity = responseSimilarity.get('message')['content'].strip()
-        # print(f'Similarity: {resultSimilarity}')
+        answer_embedding = embedding_model.encode(answer).tolist()
+        reference_embedding = embedding_model.encode(reference).tolist()
+
+        if reference_embedding is not None and answer_embedding is not None:
+            similarity = cosine_similarity([reference_embedding], [answer_embedding])[0][0]
+        else:
+            similarity = None
 
         factual_correctness = float(re.findall(r'\d+\.\d+', resultFactualCorrectness)[0])
-        similarity = float(re.findall(r'\d+\.\d+', resultSimilarity)[0])
         return factual_correctness, similarity
     except Exception as e:
         print(f"Error al consultar LLM: {e}")
