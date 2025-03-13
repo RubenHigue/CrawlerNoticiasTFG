@@ -3,7 +3,7 @@ judge_model: "mistral"
 news_url: "https://www.libertaddigital.com/defensa/, https://www.eldebate.com/espana/defensa/"
 cassandra_host: "127.0.0.1"
 retrieved_docs: 2
-execution_mode: "test"
+execution_mode: "production"
 table_name: "noticias_tabulares"
 keyspace: "noticias"
 test_data: "csv/evaluacion_tfg.csv"

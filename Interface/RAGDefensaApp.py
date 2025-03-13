@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QVBoxLayout, QHBoxLa
                              QPushButton, QTextEdit, QTabWidget, QLineEdit, QDateEdit, QMessageBox,
                              QTableWidget, QTableWidgetItem)
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QDate
 import yaml
 from pathlib import Path
 
@@ -131,9 +131,11 @@ class RAGDefensaApp(QWidget):
         self.date_entry = QDateEdit()
         self.date_entry.setCalendarPopup(True)
         self.date_entry.setFixedWidth(120)
+        self.date_entry.setDate(QDate.currentDate())
         self.date_entry2 = QDateEdit()
         self.date_entry2.setCalendarPopup(True)
         self.date_entry2.setFixedWidth(120)
+        self.date_entry2.setDate(QDate.currentDate())
         date_layout.addWidget(QLabel("Fecha inicial:"))
         date_layout.addWidget(self.date_entry)
         date_layout.addWidget(QLabel("Fecha final:"))
