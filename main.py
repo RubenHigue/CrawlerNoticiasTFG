@@ -17,6 +17,7 @@ from ragas.dataset_schema import SingleTurnSample
 from ragas.metrics import LLMContextRecall, LLMContextPrecisionWithoutReference, Faithfulness, context_recall, \
     context_precision, faithfulness
 from sklearn.metrics.pairwise import cosine_similarity
+import spacy
 
 import ollama
 
@@ -30,6 +31,8 @@ from Ragas.BaseLLMOllama import BaseLLMOllama
 import yaml
 
 load_dotenv()
+
+nlp = spacy.load("es_core_news_sm")
 
 # Carga de los datos de config
 with open("config_data.yaml", "r", encoding="utf-8") as file:
@@ -139,7 +142,14 @@ def process_article(article_data):
         )
 
 
-# Función para migrar los articulos de Cassandra a Chroma
+# Función para segmentar los articulos en párrafos
+def segmentate_spacy(texto):
+    doc = nlp(texto)
+    parrafos = [sent.text for sent in doc.sents]
+    return parrafos
+
+
+# Función para pasar los articulos de Cassandra a Chroma por párrafos
 def migrate_cassandra_to_chroma():
     all_articles = cassandra.get_all_entities(
         table=data.get("table_name")
@@ -148,26 +158,31 @@ def migrate_cassandra_to_chroma():
     print(f"Se encontraron {len(all_articles)} artículos en Cassandra para migrar a Chroma.")
 
     for article in all_articles:
-
         if not chroma.exists_by_title(article["titular"]):
             print(f"Migrando artículo con ID: {article['id']} - Titular: {article['titular']}")
 
-            embedding = embedding_model.encode(article["noticia"])
-            if article["fecha"] != "Fecha no encontrada":
-                chroma.insert_article(
-                    doc_id=str(article["id"]),
-                    metadata={
-                        "fuente": article["fuente"],
-                        "fecha": datetime.strptime(article["fecha"], "%d/%m/%Y").timestamp(),
-                        "titular": article["titular"],
-                        "url": article["url"]
-                    },
-                    content=article["noticia"],
-                    embedding=embedding
-                )
+            paragraphs = segmentate_spacy(article["noticia"])
+
+            for i, paragraph in enumerate(paragraphs):
+                if paragraph.strip():  # Evitar insertar párrafos vacíos
+                    embedding = embedding_model.encode(paragraph)
+
+                    chroma.insert_article(
+                        doc_id=f"{article['id']}_{i}",  # Identificador único por párrafo
+                        metadata={
+                            "fuente": article["fuente"],
+                            "fecha": datetime.strptime(article["fecha"], "%d/%m/%Y").timestamp() if article[
+                                                                                                        "fecha"] != "Fecha no encontrada" else datetime.now().timestamp(),
+                            "titular": article["titular"],
+                            "url": article["url"]
+                        },
+                        content=paragraph,
+                        embedding=embedding
+                    )
         else:
-            print(f"El articulo con titular: {article['titular']} ya está en la base de datos ChromaDB.")
-    print("Migración completa. Todos los artículos han sido insertados en Chroma.")
+            print(f"El artículo con titular: {article['titular']} ya está en la base de datos ChromaDB.")
+
+    print("Migración completa. Todos los artículos han sido insertados en Chroma por párrafos.")
 
 
 # Funcion para procesar el archivo con las noticias del Scrapper para introducirlas en Cassandra
