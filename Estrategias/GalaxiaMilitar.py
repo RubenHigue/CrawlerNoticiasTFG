@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from .InterfazEstrategia import InterfazEstrategia
 from bs4 import BeautifulSoup
 import csv
@@ -15,9 +17,15 @@ class GalaxiaMilitar(InterfazEstrategia):
     def extract_details(self, article_soup: BeautifulSoup):
         fuente = "Galaxia Militar"
 
-        fecha_tag = article_soup.find("time", class_="entry-date published")
-        fecha = fecha_tag.get_text(strip=True) if fecha_tag else "Fecha no encontrada"
-        hora = fecha_tag["datetime"].split("T")[1].split("+")[0] if fecha_tag and "datetime" in fecha_tag.attrs else ""
+        time_tag = article_soup.find("time", class_="entry-date published")
+
+        if time_tag and "datetime" in time_tag.attrs:
+            fecha_iso = time_tag["datetime"]
+
+            fecha_obj = datetime.strptime(fecha_iso, "%Y-%m-%dT%H:%M:%S%z")
+
+            fecha = fecha_obj.strftime("%d/%m/%Y")
+            hora = fecha_obj.strftime("%H:%M:%S")
 
         autor_tag = article_soup.find("span", class_="author vcard")
         autor_nombre = autor_tag.get_text(strip=True) if autor_tag else "Redacción"
