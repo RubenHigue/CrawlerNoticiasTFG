@@ -49,6 +49,8 @@ class RAGDefensaApp(QWidget):
     def __init__(self, response_without_dates, response_with_dates, crawl_and_store, migrate_cassandra_to_chroma,
                  test_evaluation, get_articles_from_db):
         super().__init__()
+        self.last_context = []
+        self.last_context_date = []
         self.advanced_window = None
         self.response_without_dates = response_without_dates
         self.response_with_dates = response_with_dates
@@ -110,8 +112,12 @@ class RAGDefensaApp(QWidget):
         self.response_text = QTextEdit()
         self.response_text.setReadOnly(True)
 
+        show_context_button = QPushButton("Mostrar Contexto Usado")
+        show_context_button.clicked.connect(self.show_context)
+
         layout.addWidget(self.response_text)
         layout.addLayout(query_layout)
+        layout.addWidget(show_context_button)
         tab.setLayout(layout)
         self.tabs.addTab(tab, "Consulta sin Fecha")
 
@@ -144,9 +150,13 @@ class RAGDefensaApp(QWidget):
         self.response_text_date = QTextEdit()
         self.response_text_date.setReadOnly(True)
 
+        show_context_button_date = QPushButton("Mostrar Contexto Usado")
+        show_context_button_date.clicked.connect(self.show_context_date)
+
         layout.addWidget(self.response_text_date)
         layout.addLayout(date_layout)
         layout.addLayout(query_date_layout)
+        layout.addWidget(show_context_button_date)
         tab.setLayout(layout)
         self.tabs.addTab(tab, "Consulta con Fecha")
 
@@ -190,6 +200,39 @@ class RAGDefensaApp(QWidget):
         msg.setStandardButtons(QMessageBox.StandardButton.Ok)
         msg.exec()
 
+    def show_context(self):
+        if not self.last_context:
+            self.show_message("Contexto", "No hay contexto disponible. Ejecuta una consulta primero.")
+            return
+        context_text = "\n\n---\n\n".join(self.last_context)
+        self.show_context_window("Contexto Usado (Sin Fecha)", context_text)
+
+    def show_context_date(self):
+        if not self.last_context_date:
+            self.show_message("Contexto", "No hay contexto disponible. Ejecuta una consulta con fecha primero.")
+            return
+        context_text = "\n\n---\n\n".join(self.last_context_date)
+        self.show_context_window("Contexto Usado (Con Fecha)", context_text)
+
+    def show_context_window(self, title, context_text):
+        dialog = QDialog(self)
+        dialog.setWindowTitle(title)
+        dialog.setGeometry(150, 150, 600, 400)
+
+        layout = QVBoxLayout()
+
+        text_edit = QTextEdit()
+        text_edit.setReadOnly(True)
+        text_edit.setPlainText(context_text)
+        layout.addWidget(text_edit)
+
+        close_button = QPushButton("Cerrar")
+        close_button.clicked.connect(dialog.accept)
+        layout.addWidget(close_button)
+
+        dialog.setLayout(layout)
+        dialog.exec()
+
     def load_articles(self):
         articles = self.get_articles_from_db(data.get("table_name"))
 
@@ -220,7 +263,8 @@ class RAGDefensaApp(QWidget):
             self.response_text.setText("Por favor, introduce una consulta.")
             return
         self.response_text.setText("Ejecutando consulta...")
-        answer = self.response_without_dates(question)
+        answer, context = self.response_without_dates(question)
+        self.last_context = context
         self.response_text.setText(answer.get("content"))
 
     def execute_query_with_date(self):
@@ -231,7 +275,8 @@ class RAGDefensaApp(QWidget):
             self.response_text_date.setText("Por favor, completa la consulta y selecciona las fechas.")
             return
         self.response_text_date.setText(f"Ejecutando consulta entre {date} y {date2}...")
-        answer = self.response_with_dates(question, date, date2)
+        answer, context = self.response_with_dates(question, date, date2)
+        self.last_context_date = context
         self.response_text_date.setText(answer.get("content"))
 
     def run_scraping(self):

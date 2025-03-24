@@ -78,7 +78,7 @@ def response_without_dates(question):
     relevant_news = chroma.search(query_embedding=query_embedding, top_k=data.get("retrieved_docs"))
     context = process_relevant_news(relevant_news)
     answer = generate_response_with_ollama(question, str(context))
-    return answer
+    return answer, context
 
 
 # Funcion para consultas con fechas
@@ -89,14 +89,14 @@ def response_with_dates(question, date, date2):
                                                   top_k=data.get("retrieved_docs"))
         context = process_relevant_news(relevant_news)
         answer = generate_response_with_ollama(question, str(context))
-        return answer
+        return answer, context
     else:
         query_embedding = embedding_model.encode(question).tolist()
         relevant_news = chroma.searchByDate(query_embedding=query_embedding, date=date,
                                             top_k=data.get("retrieved_docs"))
         context = process_relevant_news(relevant_news)
         answer = generate_response_with_ollama(question, str(context))
-        return answer
+        return answer, context
 
 
 # Funcion para procesar el contexto y sus metadatos para el modelo
