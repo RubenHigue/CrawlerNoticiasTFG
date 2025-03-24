@@ -2,7 +2,7 @@ llm_model: "llama3.2"
 judge_model: "mistral"
 news_url: "https://www.libertaddigital.com/defensa/, https://www.eldebate.com/espana/defensa/, https://galaxiamilitar.es, https://www.elmundo.es/espana/ministerio-defensa.html"
 cassandra_host: "127.0.0.1"
-retrieved_docs: 3
+retrieved_docs: 8
 execution_mode: "production"
 table_name: "noticias_tabulares"
 keyspace: "noticias"
