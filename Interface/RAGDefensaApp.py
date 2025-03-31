@@ -2,7 +2,7 @@ import asyncio
 
 from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QVBoxLayout, QHBoxLayout,
                              QPushButton, QTextEdit, QTabWidget, QLineEdit, QDateEdit, QMessageBox,
-                             QTableWidget, QTableWidgetItem)
+                             QTableWidget, QTableWidgetItem, QScrollArea)
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt, QDate
 import yaml
@@ -12,10 +12,10 @@ from PyQt6.QtWidgets import QDialog
 
 
 class AdvancedOptionsWindow(QDialog):
-    def __init__(self, parent=None, run_scraping=None, migrate_data=None, evaluate_data=None):
+    def __init__(self, parent=None, run_scraping=None, migrate_data=None, evaluate_data=None, show_context=None, show_context_date=None):
         super().__init__(parent)
         self.setWindowTitle("Opciones Avanzadas")
-        self.setGeometry(200, 200, 400, 200)
+        self.setGeometry(200, 200, 400, 250)
 
         layout = QVBoxLayout()
 
@@ -31,9 +31,19 @@ class AdvancedOptionsWindow(QDialog):
         if evaluate_data:
             evaluate_button.clicked.connect(evaluate_data)
 
+        show_context_button = QPushButton("Mostrar Contexto Usado (Sin Fecha)")
+        if show_context:
+            show_context_button.clicked.connect(show_context)
+
+        show_context_button_date = QPushButton("Mostrar Contexto Usado (Con Fecha)")
+        if show_context_date:
+            show_context_button_date.clicked.connect(show_context_date)
+
         layout.addWidget(crawl_button)
         layout.addWidget(migrate_button)
         layout.addWidget(evaluate_button)
+        layout.addWidget(show_context_button)
+        layout.addWidget(show_context_button_date)
 
         self.setLayout(layout)
 
@@ -112,12 +122,9 @@ class RAGDefensaApp(QWidget):
         self.response_text = QTextEdit()
         self.response_text.setReadOnly(True)
 
-        show_context_button = QPushButton("Mostrar Contexto Usado")
-        show_context_button.clicked.connect(self.show_context)
 
         layout.addWidget(self.response_text)
         layout.addLayout(query_layout)
-        layout.addWidget(show_context_button)
         tab.setLayout(layout)
         self.tabs.addTab(tab, "Consulta sin Fecha")
 
@@ -150,13 +157,10 @@ class RAGDefensaApp(QWidget):
         self.response_text_date = QTextEdit()
         self.response_text_date.setReadOnly(True)
 
-        show_context_button_date = QPushButton("Mostrar Contexto Usado")
-        show_context_button_date.clicked.connect(self.show_context_date)
 
         layout.addWidget(self.response_text_date)
         layout.addLayout(date_layout)
         layout.addLayout(query_date_layout)
-        layout.addWidget(show_context_button_date)
         tab.setLayout(layout)
         self.tabs.addTab(tab, "Consulta con Fecha")
 
@@ -188,31 +192,34 @@ class RAGDefensaApp(QWidget):
             self,
             run_scraping=self.run_scraping,
             migrate_data=self.migrate_data,
-            evaluate_data=self.evaluate_data
+            evaluate_data=self.evaluate_data,
+            show_context=self.show_context,
+            show_context_date=self.show_context_date
         )
         self.advanced_window.exec()
 
-    def show_message(self, title, message):
-        msg = QMessageBox()
-        msg.setIcon(QMessageBox.Icon.Information)
-        msg.setWindowTitle(title)
-        msg.setText(message)
-        msg.setStandardButtons(QMessageBox.StandardButton.Ok)
-        msg.exec()
+    def open_advanced_options(self, event):
+        self.advanced_window = AdvancedOptionsWindow(
+            self,
+            run_scraping=self.run_scraping,
+            migrate_data=self.migrate_data,
+            evaluate_data=self.evaluate_data,
+            show_context=self.show_context,
+            show_context_date=self.show_context_date
+        )
+        self.advanced_window.exec()
 
     def show_context(self):
         if not self.last_context:
             self.show_message("Contexto", "No hay contexto disponible. Ejecuta una consulta primero.")
             return
-        context_text = "\n\n---\n\n".join(self.last_context)
-        self.show_context_window("Contexto Usado (Sin Fecha)", context_text)
+        self.show_context_window("Contexto Usado (Sin Fecha)", "\n\n---\n\n".join(self.last_context))
 
     def show_context_date(self):
         if not self.last_context_date:
             self.show_message("Contexto", "No hay contexto disponible. Ejecuta una consulta con fecha primero.")
             return
-        context_text = "\n\n---\n\n".join(self.last_context_date)
-        self.show_context_window("Contexto Usado (Con Fecha)", context_text)
+        self.show_context_window("Contexto Usado (Con Fecha)", "\n\n---\n\n".join(self.last_context_date))
 
     def show_context_window(self, title, context_text):
         dialog = QDialog(self)
@@ -221,17 +228,35 @@ class RAGDefensaApp(QWidget):
 
         layout = QVBoxLayout()
 
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        text_container = QWidget()
+        text_layout = QVBoxLayout()
+
         text_edit = QTextEdit()
         text_edit.setReadOnly(True)
         text_edit.setPlainText(context_text)
-        layout.addWidget(text_edit)
+        text_layout.addWidget(text_edit)
+
+        text_container.setLayout(text_layout)
+        scroll_area.setWidget(text_container)
 
         close_button = QPushButton("Cerrar")
         close_button.clicked.connect(dialog.accept)
+
+        layout.addWidget(scroll_area)
         layout.addWidget(close_button)
 
         dialog.setLayout(layout)
         dialog.exec()
+
+    def show_message(self, title, message):
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Icon.Information)
+        msg.setWindowTitle(title)
+        msg.setText(message)
+        msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+        msg.exec()
 
     def load_articles(self):
         articles = self.get_articles_from_db(data.get("table_name"))
