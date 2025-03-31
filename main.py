@@ -244,7 +244,7 @@ def load_samples_from_csv(file_path):
 
 # Funcion que ejecuta la evaluacion del proyecto
 async def test_evaluation():
-    file_path = "csv/evaluacion_tfg.csv"
+    file_path = data.get("test_data")
     samples = load_samples_from_csv(file_path)
 
     run_config = RunConfig(max_retries=1)
