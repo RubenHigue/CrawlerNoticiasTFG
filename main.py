@@ -276,18 +276,18 @@ async def test_evaluation():
 
 
 # Función para consultar al LLM la precision y el recall del contexto
-def query_llm_for_precision_recall(context, reference):
+def query_llm_for_precision_recall(context, reference, judge_model):
     promptPrecision = f"Contexto: {context} " + f"Referencia: {reference}" + data.get('prompt_eval_precision')
     promptRecall = f"Contexto: {context} " + f"Referencia: {reference}" + data.get('prompt_eval_recall')
 
     try:
         responsePrecision = ollama.chat(
-            model=data.get("judge_model"),
+            model=judge_model,
             messages=[{'role': 'user', 'content': promptPrecision}]
         )
 
         responseRecall = ollama.chat(
-            model=data.get("judge_model"),
+            model=judge_model,
             messages=[{'role': 'user', 'content': promptRecall}]
         )
 
@@ -306,14 +306,14 @@ def query_llm_for_precision_recall(context, reference):
 
 
 # Función para consultar al LLM la FactualCorrectness y la similarity del contexto
-def query_llm_for_factual_correctness_similarity(answer, reference):
+def query_llm_for_factual_correctness_similarity(answer, reference, judge_model):
     promptFactualCorrectness = f"Respuesta: {answer} " + f"Referencia: {reference}" + data.get(
         'prompt_eval_factual_correctness')
     promptSimilarity = f"Respuesta: {answer} " + f"Referencia: {reference}" + data.get('prompt_eval_similarity')
 
     try:
         responseFactualCorrectness = ollama.chat(
-            model=data.get("judge_model"),
+            model=judge_model,
             messages=[{'role': 'user', 'content': promptFactualCorrectness}]
         )
 
@@ -336,12 +336,12 @@ def query_llm_for_factual_correctness_similarity(answer, reference):
 
 
 # Función para la evaluación de la fidelidad de las respuestas
-def check_faithfulness_with_ollama(answer, context):
+def check_faithfulness_with_ollama(answer, context, judge_model):
     prompt = f"Contexto: {context} " + f"Respuesta: {answer}" + data.get('prompt_eval_faith')
 
     try:
         response = ollama.chat(
-            model=data.get("judge_model"),
+            model=judge_model,
             messages=[{'role': 'user', 'content': prompt}]
         )
 
@@ -364,10 +364,15 @@ def compute_context_recall(reference_context, retrieved_contexts):
     return recall
 
 
+# Cargar modelos juez desde config
+def load_judge_models():
+    return data["judge_models"].split(", ")
+
+
 # Función de evaluación sin RAGAS
 def evaluate_dataset_with_llm(csv_path):
     df = pd.read_csv(csv_path)
-    precisions, recalls, realrecalls, fact_correctness, similarities = [], [], [], [], []
+    judge_models = load_judge_models()
 
     for index, row in df.iterrows():
         context = " ".join(eval(row["retrieved_contexts"])) if isinstance(row["retrieved_contexts"], str) else row[
@@ -378,46 +383,57 @@ def evaluate_dataset_with_llm(csv_path):
         reference_context = ast.literal_eval(row["reference_context"]) if isinstance(row["reference_context"], str) else \
             row["reference_context"]
 
-        precision, recall = query_llm_for_precision_recall(context, reference)
-        factualcorrectness, similarity = query_llm_for_factual_correctness_similarity(response, reference_response)
-        recallreal = compute_context_recall(reference_context, context)
-        faith = check_faithfulness_with_ollama(response, context)
+        print(f"Consulta: {row['user_input']}")
 
-        if precision is not None and recall is not None and factualcorrectness is not None and similarity is not None:
-            precisions.append(precision)
-            recalls.append(recall)
-            realrecalls.append(recallreal)
-            fact_correctness.append(factualcorrectness)
-            similarities.append(similarity)
+        for judge in judge_models:
+            precision, recall = query_llm_for_precision_recall(context, reference, judge_model=judge)
+            factualcorrectness, similarity = query_llm_for_factual_correctness_similarity(response, reference_response,
+                                                                                          judge_model=judge)
+            recallreal = compute_context_recall(reference_context, context)
+            faith = check_faithfulness_with_ollama(response, context, judge_model=judge)
 
-            df.at[index, "precision"] = precision
-            df.at[index, "recall"] = recall
-            df.at[index, "real_recall"] = recallreal
-            df.at[index, "factual_correctness"] = factualcorrectness
-            df.at[index, "similarity"] = similarity
-            df.at[index, "faithfulness"] = faith
+            if precision is not None and recall is not None and factualcorrectness is not None and similarity is not None:
+                df.at[index, f"precision_{judge}"] = precision
+                df.at[index, f"recall_{judge}"] = recall
+                df.at[index, f"factual_correctness_{judge}"] = factualcorrectness
+                df.at[index, f"faithfulness_{judge}"] = faith
 
-            print(f"Consulta: {row['user_input']}")
-            print(f"Precisión: {precision:.2f}, Recall: {recall:.2f}")
-            print(f"Faithfulness: {faith}")
-            print(f"Real Recall: {recallreal:.2f}")
-            print(f"Factual Correctness: {factualcorrectness:.2f}")
-            print(f"Similarity: {similarity:.2f}")
+                df.at[index, "real_recall"] = recallreal
+                df.at[index, f"similarity"] = similarity
+
+                print(f"Modelo juez: {judge}")
+                print(f"Precisión: {precision:.2f}, Recall: {recall:.2f}")
+                print(f"Factual Correctness: {factualcorrectness:.2f}, Similarity: {similarity:.2f}")
+
+            print(f"Real Recall: {recallreal:.2f}, Faithfulness: {faith}")
             print("-" * 50)
-
             df.to_csv(csv_path, index=False)
 
-    avg_precision = sum(precisions) / len(precisions) if precisions else 0
-    avg_recall = sum(recalls) / len(recalls) if recalls else 0
-    avg_realrecall = sum(realrecalls) / len(realrecalls) if realrecalls else 0
-    avg_fact_correctness = sum(fact_correctness) / len(fact_correctness) if fact_correctness else 0
-    avg_similarities = sum(similarities) / len(similarities) if similarities else 0
+    # Calcular promedios por modelo juez
+    for judge in judge_models:
+        precisions = df[f"precision_{judge}"].dropna()
+        recalls = df[f"recall_{judge}"].dropna()
+        factuals = df[f"factual_correctness_{judge}"].dropna()
+        faiths = df[f"faithfulness_{judge}"].dropna()
 
-    print(f"\nPrecisión promedio: {avg_precision:.2f}")
-    print(f"Recall promedio: {avg_recall:.2f}")
-    print(f"Recall real promedio: {avg_realrecall:.2f}")
-    print(f"Factual correctness promedio: {avg_fact_correctness:.2f}")
-    print(f"Similarity promedio: {avg_similarities:.2f}")
+        avg_precision = precisions.mean() if not precisions.empty else 0
+        avg_recall = recalls.mean() if not recalls.empty else 0
+        avg_fact = factuals.mean() if not factuals.empty else 0
+
+        print(f"\n[Métricas promedio para {judge}]")
+        print(f"Precisión: {avg_precision:.2f}")
+        print(f"Recall: {avg_recall:.2f}")
+        print(f"Factual Correctness: {avg_fact:.2f}")
+
+    # Real recall y faithfulness promedio generales
+    realrecalls = df["real_recall"].dropna()
+    similarity = df["similarity"].dropna()
+
+    avg_realrecall = realrecalls.mean() if not realrecalls.empty else 0
+    avg_sim = similarity.mean() if not similarity.empty else 0
+
+    print(f"\nRecall real promedio: {avg_realrecall:.2f}")
+    print(f"Similarity promedio: {avg_sim:.2f}")
 
 
 # Ejecutar el proceso
