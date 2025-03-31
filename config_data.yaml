@@ -1,12 +1,12 @@
-llm_model: "llama3.2"
+llm_model: "cas/salamandra-7b-instruct"
 judge_models: "mistral, qwen2.5"
 news_url: "https://www.libertaddigital.com/defensa/, https://www.eldebate.com/espana/defensa/, https://galaxiamilitar.es, https://www.elmundo.es/espana/ministerio-defensa.html"
 cassandra_host: "127.0.0.1"
 retrieved_docs: 8
-execution_mode: "production"
+execution_mode: "test"
 table_name: "noticias_tabulares"
 keyspace: "noticias"
-test_data: "csv/evaluacion_tfg.csv"
+test_data: "csv/evaluacion_tfg_salamandra.csv"
 military_prompt: "Eres un asistente militar de defensa para tareas de respuesta a preguntas. Utiliza las siguientes piezas de contexto recuperado para responder a la pregunta. Si no sabes la respuesta, di que no la sabes. Usa un máximo de tres frases y mantén la respuesta concisa."
 assistant_prompt: "Eres un asistente para tareas de respuesta a preguntas. Utiliza las siguientes piezas de contexto recuperado para responder a la pregunta. Si no sabes la respuesta, di que no la sabes. Usa un máximo de tres frases y mantén la respuesta concisa."
 prompt_generico: 'Rellena el apartado Output de la misma forma que en el ejemplo de Albert Einstein pero para "la answer dada, 1 si tiene relación con el artículo y 0 si no tiene nada de relación. Dado el input, dada la "question" procesa el "context" y saca solo el formato JSON con los siguientes campos: '
