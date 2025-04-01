@@ -12,7 +12,8 @@ from PyQt6.QtWidgets import QDialog
 
 
 class AdvancedOptionsWindow(QDialog):
-    def __init__(self, parent=None, run_scraping=None, migrate_data=None, evaluate_data=None, show_context=None, show_context_date=None):
+    def __init__(self, parent=None, run_scraping=None, migrate_data=None, evaluate_data=None, show_context=None,
+                 show_context_date=None):
         super().__init__(parent)
         self.setWindowTitle("Opciones Avanzadas")
         self.setGeometry(200, 200, 400, 250)
@@ -87,6 +88,7 @@ class RAGDefensaApp(QWidget):
         self.menu_label = QLabel()
         pixmap = QPixmap("./Images/base-de-datos-2.png").scaled(30, 30, Qt.AspectRatioMode.KeepAspectRatio)
         self.menu_label.setPixmap(pixmap)
+        self.menu_label.setToolTip("Opciones avanzadas")
         self.menu_label.mousePressEvent = self.open_advanced_options
 
         header_layout.addWidget(self.logo_label)
@@ -114,6 +116,8 @@ class RAGDefensaApp(QWidget):
         query_layout = QHBoxLayout()
         self.query_entry = QLineEdit()
         self.query_entry.setPlaceholderText("Introduce tu consulta")
+        self.query_entry.returnPressed.connect(self.execute_query)
+
         execute_button = QPushButton("Ejecutar Consulta")
         execute_button.clicked.connect(self.execute_query)
         query_layout.addWidget(self.query_entry)
@@ -121,7 +125,6 @@ class RAGDefensaApp(QWidget):
 
         self.response_text = QTextEdit()
         self.response_text.setReadOnly(True)
-
 
         layout.addWidget(self.response_text)
         layout.addLayout(query_layout)
@@ -135,6 +138,8 @@ class RAGDefensaApp(QWidget):
         query_date_layout = QHBoxLayout()
         self.query_entry_date = QLineEdit()
         self.query_entry_date.setPlaceholderText("Introduce tu consulta")
+        self.query_entry_date.returnPressed.connect(self.execute_query_with_date)
+
         execute_button = QPushButton("Ejecutar Consulta")
         execute_button.clicked.connect(self.execute_query_with_date)
         query_date_layout.addWidget(self.query_entry_date)
@@ -156,7 +161,6 @@ class RAGDefensaApp(QWidget):
 
         self.response_text_date = QTextEdit()
         self.response_text_date.setReadOnly(True)
-
 
         layout.addWidget(self.response_text_date)
         layout.addLayout(date_layout)
@@ -281,13 +285,13 @@ class RAGDefensaApp(QWidget):
             self.current_page += 1
             self.load_articles()
 
-
     def execute_query(self):
         question = self.query_entry.text()
+        self.response_text.setText("Ejecutando la consulta...")
+        QApplication.processEvents()
         if not question:
             self.response_text.setText("Por favor, introduce una consulta.")
             return
-        self.response_text.setText("Ejecutando consulta...")
         answer, context = self.response_without_dates(question)
         self.last_context = context
         self.response_text.setText(answer.get("content"))
@@ -296,10 +300,11 @@ class RAGDefensaApp(QWidget):
         question = self.query_entry_date.text()
         date = self.date_entry.date().toString("dd/MM/yyyy")
         date2 = self.date_entry2.date().toString("dd/MM/yyyy")
+        self.response_text_date.setText(f"Ejecutando la consulta entre {date} and {date2}...")
+        QApplication.processEvents()
         if not question or not date or not date2:
             self.response_text_date.setText("Por favor, completa la consulta y selecciona las fechas.")
             return
-        self.response_text_date.setText(f"Ejecutando consulta entre {date} y {date2}...")
         answer, context = self.response_with_dates(question, date, date2)
         self.last_context_date = context
         self.response_text_date.setText(answer.get("content"))
