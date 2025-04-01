@@ -6,7 +6,7 @@ from chromadb.config import Settings
 
 class ChromaDB:
     def __init__(self, collection_name):
-        self.client = chromadb.Client(Settings())
+        self.client = chromadb.PersistentClient(path="./data/chroma_db")
         self.collection = self.client.get_or_create_collection(name=collection_name)
 
     def insert_article(self, doc_id, metadata, content, embedding):

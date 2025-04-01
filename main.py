@@ -440,7 +440,6 @@ def evaluate_dataset_with_llm(csv_path):
 if __name__ == "__main__":
     try:
         if data.get("execution_mode") == "production":
-            migrate_cassandra_to_chroma()
             app = QApplication(sys.argv)
             window = RAGDefensaApp(response_without_dates, response_with_dates, crawl_and_store,
                                    migrate_cassandra_to_chroma, test_evaluation, get_articles_from_db)
