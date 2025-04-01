@@ -105,7 +105,7 @@ def process_relevant_news(relevant_news):
     metadata = relevant_news.get("metadatas")
     context = []
     for news, meta in zip(raw_context[0], metadata[0]):
-        context.append("La fecha del artículo es: " + str(meta['fecha']) + " " + str(news))
+        context.append("La fecha del artículo es: " + datetime.utcfromtimestamp(meta['fecha']).strftime('%d/%m/%Y') + " " + str(news))
     return context
 
 
