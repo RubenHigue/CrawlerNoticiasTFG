@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QVBoxLayout, QHBoxLa
                              QPushButton, QTextEdit, QTabWidget, QLineEdit, QDateEdit, QMessageBox,
                              QTableWidget, QTableWidgetItem, QScrollArea)
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtCore import Qt, QDate
+from PyQt6.QtCore import Qt, QDate, QTimer
 import yaml
 from pathlib import Path
 
@@ -292,6 +292,10 @@ class RAGDefensaApp(QWidget):
         if not question:
             self.response_text.setText("Por favor, introduce una consulta.")
             return
+        QTimer.singleShot(0, self.run_query)
+
+    def run_query(self):
+        question = self.query_entry.text()
         answer, context = self.response_without_dates(question)
         self.last_context = context
         self.response_text.setText(answer.get("content"))
@@ -300,14 +304,21 @@ class RAGDefensaApp(QWidget):
         question = self.query_entry_date.text()
         date = self.date_entry.date().toString("dd/MM/yyyy")
         date2 = self.date_entry2.date().toString("dd/MM/yyyy")
-        self.response_text_date.setText(f"Ejecutando la consulta entre {date} and {date2}...")
+        self.response_text_date.setText(f"Ejecutando la consulta entre {date} y {date2}...")
         QApplication.processEvents()
         if not question or not date or not date2:
             self.response_text_date.setText("Por favor, completa la consulta y selecciona las fechas.")
             return
+        QTimer.singleShot(0, self.run_query_with_date)
+
+    def run_query_with_date(self):
+        question = self.query_entry_date.text()
+        date = self.date_entry.date().toString("dd/MM/yyyy")
+        date2 = self.date_entry2.date().toString("dd/MM/yyyy")
         answer, context = self.response_with_dates(question, date, date2)
         self.last_context_date = context
         self.response_text_date.setText(answer.get("content"))
+
 
     def run_scraping(self):
         print("Ejecutando scraping...")
