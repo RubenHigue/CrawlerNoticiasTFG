@@ -67,8 +67,8 @@ def generate_response_with_ollama(question, context):
         model=data.get("llm_model"),
         messages=[{'role': 'user', 'content': prompt2}]
     )
-    print(response.get('message', "No response received"))
-    print(response2.get('message', "No response received."))
+    # print(response.get('message', "No response received"))
+    # print(response2.get('message', "No response received."))
     return response.get('message', "No response received.")
 
 
