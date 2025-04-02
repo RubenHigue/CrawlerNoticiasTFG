@@ -3,20 +3,19 @@ import asyncio
 import re
 
 import pandas as pd
+from flask import Flask, render_template, request, jsonify
+from langchain.chains.natbot.crawler import Crawler
 
 import csv
 import sys
 import uuid
-from datetime import datetime
 
 from PyQt6.QtWidgets import QApplication
 from dotenv import load_dotenv
 
-from ragas import RunConfig
 from ragas.dataset_schema import SingleTurnSample
-from ragas.metrics import LLMContextRecall, LLMContextPrecisionWithoutReference, Faithfulness, context_recall, \
-    context_precision, faithfulness
 from sklearn.metrics.pairwise import cosine_similarity
+from datetime import datetime
 import spacy
 
 import ollama
@@ -27,7 +26,6 @@ from BaseDeDatos.ChromaDB import ChromaDB
 from sentence_transformers import SentenceTransformer
 
 from Interface.RAGDefensaApp import RAGDefensaApp
-from Ragas.BaseLLMOllama import BaseLLMOllama
 import yaml
 
 load_dotenv()
@@ -37,6 +35,7 @@ nlp = spacy.load("es_core_news_sm")
 # Carga de los datos de config
 with open("config_data.yaml", "r", encoding="utf-8") as file:
     data = yaml.safe_load(file)
+    urls = data["news_url"].split(", ")
 
 # Inicializar bases de datos
 cassandra = Cassandra(hosts=[data.get("cassandra_host")], keyspace=data.get("keyspace"))
@@ -44,6 +43,11 @@ chroma = ChromaDB(collection_name="noticias_articulos")
 
 # Inicializar el modelo para embeddings
 embedding_model = SentenceTransformer("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+
+# Contextos
+
+last_context = None
+last_context_date = None
 
 
 # embedding_model = SentenceTransformer("jaimevera1107/all-MiniLM-L6-v2-similarity-es")
@@ -69,7 +73,9 @@ def generate_response_with_ollama(question, context):
     )
     # print(response.get('message', "No response received"))
     # print(response2.get('message', "No response received."))
-    return response.get('message', "No response received.")
+    answer = response.get('message', "No response received.")
+    answer = answer.get("content")
+    return answer
 
 
 # Funcion para consultas sin fechas
@@ -105,7 +111,9 @@ def process_relevant_news(relevant_news):
     metadata = relevant_news.get("metadatas")
     context = []
     for news, meta in zip(raw_context[0], metadata[0]):
-        context.append("La fecha del artículo es: " + datetime.utcfromtimestamp(meta['fecha']).strftime('%d/%m/%Y') + " " + str(news))
+        context.append(
+            "La fecha del artículo es: " + datetime.utcfromtimestamp(meta['fecha']).strftime('%d/%m/%Y') + " " + str(
+                news))
     return context
 
 
@@ -240,39 +248,6 @@ def load_samples_from_csv(file_path):
         )
         samples.append(sample)
     return samples
-
-
-# Funcion que ejecuta la evaluacion del proyecto
-async def test_evaluation():
-    file_path = data.get("test_data")
-    samples = load_samples_from_csv(file_path)
-
-    run_config = RunConfig(max_retries=1)
-
-    evaluator_llm = BaseLLMOllama(model_name=data.get("judge_model"), run_config=run_config)
-
-    context_recall = LLMContextRecall(llm=evaluator_llm)
-    context_precision = LLMContextPrecisionWithoutReference(llm=evaluator_llm)
-    faithfulness = Faithfulness(llm=evaluator_llm)
-
-    '''
-    OpenAI RAGAS
-    dataset = EvaluationDataset(samples)
-    results = evaluate(dataset, [context_recall, context_precision, faithfulness])
-    print(results)
-    '''
-
-    for sample in samples:
-        print("Evaluating sample:", sample.user_input)
-
-        print("Context Recall Results: ")
-        await context_recall.single_turn_ascore(sample)
-
-        print("Context Precision Results: ")
-        await context_precision.single_turn_ascore(sample)
-
-        print("Faithfulness Results: ")
-        await faithfulness.single_turn_ascore(sample)
 
 
 # Función para consultar al LLM la precision y el recall del contexto
@@ -436,15 +411,162 @@ def evaluate_dataset_with_llm(csv_path):
     print(f"Similarity promedio: {avg_sim:.2f}")
 
 
+''''APP FLASK'''
+app = Flask(__name__)
+
+
+@app.route('/')
+def index():
+    return render_template('query_tab.html')
+
+
+@app.route('/query_tab', methods=['GET', 'POST'])
+def query_tab():
+    answer = None
+    context = None
+
+    if request.method == 'POST':
+        question = request.form.get('query')
+        if question:
+            answer, context = response_without_dates(question)
+        else:
+            answer = "Por favor, introduce una consulta."
+            context = []
+
+    return render_template('query_tab.html', answer=answer, context=context)
+
+
+@app.route('/query_with_date_tab', methods=['GET', 'POST'])
+def query_with_date_tab():
+    answer = None
+    context = None
+
+    if request.method == 'POST':
+        question = request.form.get('query_date')
+        date1 = request.form.get('date1')
+        date2 = request.form.get('date2')
+
+        print(date1)
+        print(date2)
+
+        try:
+            date1 = datetime.strptime(date1, "%Y-%m-%d").strftime("%d/%m/%Y")
+            date2 = datetime.strptime(date2, "%Y-%m-%d").strftime("%d/%m/%Y")
+        except ValueError:
+            return render_template('query_with_date_tab.html', answer="Formato de fecha incorrecto", context=[])
+
+        print(f"Consulta: {question}, Fecha Inicio: {date1}, Fecha Fin: {date2}")  # DEBUG
+
+        if question and date1 and date2:
+            try:
+                answer, context = response_with_dates(question, date1, date2)
+                print(f"Respuesta: {answer}, Contexto: {context}")  # DEBUG
+            except Exception as e:
+                print(f"Error en response_with_dates: {e}")  # DEBUG
+                answer = "Error al procesar la consulta."
+                context = []
+        else:
+            answer = "Por favor, completa la consulta y selecciona las fechas."
+
+    return render_template('query_with_date_tab.html', answer=answer, context=context)
+
+
+@app.route('/documents_tab')
+def documents_tab():
+    page = request.args.get('page', 1, type=int)
+    articles_per_page = 10  # Artículos por página
+    all_articles = get_articles_from_db(data.get("table_name"))
+
+    total_pages = (len(all_articles) + articles_per_page - 1) // articles_per_page
+    start = (page - 1) * articles_per_page
+    end = start + articles_per_page
+    articles = all_articles[start:end]
+
+    return render_template("documents_tab.html", articles=articles, page=page, total_pages=total_pages)
+
+
+@app.route('/execute_query', methods=['POST'])
+def execute_query():
+    global last_context
+    question = request.form['query']
+    if not question:
+        return render_template('query_tab.html', query=question, answer="Por favor, introduce una consulta.")
+
+    answer, context = response_without_dates(question)
+
+    last_context = context
+
+    return render_template('query_tab.html', query=question, answer=answer)
+
+
+@app.route('/execute_query_with_date', methods=['POST'])
+def execute_query_with_date():
+    global last_context_date
+    question = request.form['query_date']
+    date1 = request.form['date1']
+    date2 = request.form['date2']
+
+    try:
+        date1 = datetime.strptime(date1, "%Y-%m-%d").strftime("%d/%m/%Y")
+        date2 = datetime.strptime(date2, "%Y-%m-%d").strftime("%d/%m/%Y")
+    except ValueError:
+        return render_template('query_with_date_tab.html', answer="Formato de fecha incorrecto", context=[])
+
+    print(f"Consulta: {question}, Fecha Inicio: {date1}, Fecha Fin: {date2}")  # DEBUG
+
+    if question and date1 and date2:
+        try:
+            answer, context = response_with_dates(question, date1, date2)
+            print(f"Respuesta: {answer}, Contexto: {context}")  # DEBUG
+            last_context_date = context
+        except Exception as e:
+            print(f"Error en response_with_dates: {e}")  # DEBUG
+            answer = "Error al procesar la consulta."
+            context = []
+    else:
+        answer = "Por favor, completa la consulta y selecciona las fechas."
+
+    return render_template('query_with_date_tab.html', answer=answer, context=context)
+
+
+@app.route('/run_scraping', methods=['POST'])
+def run_scraping():
+    crawl_and_store(urls=urls)
+    return "Scraping ejecutado correctamente."
+
+
+@app.route('/migrate_data', methods=['POST'])
+def migrate_data():
+    migrate_cassandra_to_chroma()
+    return "Datos migrados a ChromaDB."
+
+
+@app.route('/show_context', methods=['POST'])
+def show_context():
+    if not last_context:
+        return jsonify({"error": "No hay contexto disponible. Ejecuta una consulta primero."}), 400
+    return jsonify({"title": "Contexto Usado (Sin Fecha)", "context": "\n\n---\n\n".join(last_context)})
+
+
+@app.route('/show_context_date', methods=['POST'])
+def show_context_date():
+    if not last_context_date:
+        return jsonify({"error": "No hay contexto disponible. Ejecuta una consulta con fecha primero."}), 400
+    return jsonify({"title": "Contexto Usado (Con Fecha)", "context": "\n\n---\n\n".join(last_context_date)})
+
+
 # Ejecutar el proceso
 if __name__ == "__main__":
     try:
         if data.get("execution_mode") == "production":
+            '''
             app = QApplication(sys.argv)
             window = RAGDefensaApp(response_without_dates, response_with_dates, crawl_and_store,
-                                   migrate_cassandra_to_chroma, test_evaluation, get_articles_from_db)
+                                   migrate_cassandra_to_chroma, get_articles_from_db)
             window.show()
             sys.exit(app.exec())
+            '''
+            app.run(debug=True)
         elif data.get("execution_mode") == "test":
             print("Evaluando base de datos...")
             # asyncio.run(test_evaluation())

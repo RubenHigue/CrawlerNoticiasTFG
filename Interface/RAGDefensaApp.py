@@ -57,8 +57,7 @@ with open(base_dir / "config_data.yaml", "r", encoding="utf-8") as file:
 
 
 class RAGDefensaApp(QWidget):
-    def __init__(self, response_without_dates, response_with_dates, crawl_and_store, migrate_cassandra_to_chroma,
-                 test_evaluation, get_articles_from_db):
+    def __init__(self, response_without_dates, response_with_dates, crawl_and_store, migrate_cassandra_to_chroma, get_articles_from_db):
         super().__init__()
         self.last_context = []
         self.last_context_date = []
@@ -67,7 +66,6 @@ class RAGDefensaApp(QWidget):
         self.response_with_dates = response_with_dates
         self.crawl_and_store = crawl_and_store
         self.migrate_cassandra_to_chroma = migrate_cassandra_to_chroma
-        self.test_evaluation = test_evaluation
         self.get_articles_from_db = get_articles_from_db
         self.current_page = 0
         self.max_pages = 0
@@ -81,12 +79,12 @@ class RAGDefensaApp(QWidget):
         # Cabecera
         header_layout = QHBoxLayout()
         self.logo_label = QLabel()
-        pixmap = QPixmap("./Images/LogoUJA.jpg").scaled(80, 80, Qt.AspectRatioMode.KeepAspectRatio)
+        pixmap = QPixmap("./static/Images/LogoUJA.jpg").scaled(80, 80, Qt.AspectRatioMode.KeepAspectRatio)
         self.logo_label.setPixmap(pixmap)
         self.title_label = QLabel("RAG de Defensa")
         self.title_label.setStyleSheet("font-size: 18px; font-weight: bold; color: white;")
         self.menu_label = QLabel()
-        pixmap = QPixmap("./Images/base-de-datos-2.png").scaled(30, 30, Qt.AspectRatioMode.KeepAspectRatio)
+        pixmap = QPixmap("./static/Images/base-de-datos-2.png").scaled(30, 30, Qt.AspectRatioMode.KeepAspectRatio)
         self.menu_label.setPixmap(pixmap)
         self.menu_label.setToolTip("Opciones avanzadas")
         self.menu_label.mousePressEvent = self.open_advanced_options
@@ -329,8 +327,3 @@ class RAGDefensaApp(QWidget):
         print("Migrando datos a ChromaDB...")
         self.migrate_cassandra_to_chroma()
         self.show_message("Migración", "Migración de datos completada.")
-
-    def evaluate_data(self):
-        print("Evaluando base de datos...")
-        asyncio.run(self.test_evaluation())
-        self.show_message("Evaluación", "Evaluación completada.")

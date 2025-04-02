@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Ver Documentos{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="text-center">Documentos Extraídos</h2>
+
+    <table class="table table-striped table-bordered">
+        <thead class="thead-dark">
+            <tr>
+                <th scope="col">Titular</th>
+                <th scope="col">Fecha</th>
+                <th scope="col">Fuente</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for article in articles %}
+                <tr>
+                    <td>{{ article["titular"] }}</td>
+                    <td>{{ article["fecha"] }}</td>
+                    <td>{{ article["fuente"] }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="d-flex justify-content-between">
+        <a href="{{ url_for('documents_tab', page=page-1) }}"
+           class="btn btn-primary {% if page == 1 %}disabled{% endif %}">Anterior</a>
+
+        <span class="align-self-center">Página {{ page }} de {{ total_pages }}</span>
+
+        <a href="{{ url_for('documents_tab', page=page+1) }}"
+           class="btn btn-primary {% if page >= total_pages %}disabled{% endif %}">Siguiente</a>
+    </div>
+</div>
+{% endblock %}

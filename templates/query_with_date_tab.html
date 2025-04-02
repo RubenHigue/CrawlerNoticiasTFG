@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Consulta con Fecha{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>Consulta con Fecha</h2>
+
+    <textarea id="response" readonly>{{ answer if answer else "Aquí aparecerá la respuesta..." }}</textarea>
+
+    <form id="queryForm" action="/execute_query_with_date" method="POST">
+        <div class="query-container">
+            <input type="text" id="query_date" name="query_date" placeholder="Introduce tu consulta" value="{{ query }}" required>
+            <input type="date" id="date1" name="date1" required>
+            <input type="date" id="date2" name="date2" required>
+            <button type="submit">Ejecutar Consulta</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

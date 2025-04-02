@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Consulta sin Fecha{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>Consulta sin Fecha</h2>
+
+    <textarea id="response" readonly>{{ answer if answer else "Aquí aparecerá la respuesta..." }}</textarea>
+
+    <form id="queryForm" action="/execute_query" method="POST">
+        <div class="query-container">
+            <input type="text" id="query" name="query" placeholder="Introduce tu consulta" value="{{ query }}" required>
+            <button type="submit">Ejecutar Consulta</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
