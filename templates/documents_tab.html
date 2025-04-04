@@ -16,7 +16,11 @@
         <tbody>
             {% for article in articles %}
                 <tr>
-                    <td>{{ article["titular"] }}</td>
+                    <td>
+                        <a class="link-secondary link-offset-2 link-underline-opacity-25 link-underline-opacity-100-hover" href="{{ article['url'] }}" target="_blank">
+                            {{ article["titular"] }}
+                        </a>
+                    </td>
                     <td>{{ article["fecha"] }}</td>
                     <td>{{ article["fuente"] }}</td>
                 </tr>
