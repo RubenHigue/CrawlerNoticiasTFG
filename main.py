@@ -78,11 +78,33 @@ def generate_response_with_ollama(question, context):
     return answer
 
 
+from sentence_transformers import CrossEncoder
+
+# Inicializa el modelo CrossEncoder (puedes hacerlo en global)
+cross_encoder = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
+
+
+# Funcion para reordenar los documentos obtenidos de ChromaDB
+def rerank_documents(question, retrieved_docs, top_n=5):
+    raw_context = retrieved_docs.get("documents")
+    pairs = [(question, doc) for doc in raw_context[0]]
+
+
+    scores = cross_encoder.predict(pairs)
+
+    docs_with_scores = list(zip(raw_context[0], scores))
+
+    reranked = sorted(docs_with_scores, key=lambda x: x[1], reverse=True)
+    reranked_docs = [doc for doc, _ in reranked[:top_n]]
+
+    return reranked_docs
+
+
 # Funcion para consultas sin fechas
 def response_without_dates(question):
     query_embedding = embedding_model.encode(question).tolist()
     relevant_news = chroma.search(query_embedding=query_embedding, top_k=data.get("retrieved_docs"))
-    context = process_relevant_news(relevant_news)
+    context = process_relevant_news_rerank(relevant_news, question, data.get("re_ranked_docs"))
     answer = generate_response_with_ollama(question, str(context))
     return answer, context
 
@@ -93,14 +115,14 @@ def response_with_dates(question, date, date2):
         query_embedding = embedding_model.encode(question).tolist()
         relevant_news = chroma.searchByRangesDate(query_embedding=query_embedding, date=date, date2=date2,
                                                   top_k=data.get("retrieved_docs"))
-        context = process_relevant_news(relevant_news)
+        context = process_relevant_news_rerank(relevant_news, question, data.get("re_ranked_docs"))
         answer = generate_response_with_ollama(question, str(context))
         return answer, context
     else:
         query_embedding = embedding_model.encode(question).tolist()
         relevant_news = chroma.searchByDate(query_embedding=query_embedding, date=date,
                                             top_k=data.get("retrieved_docs"))
-        context = process_relevant_news(relevant_news)
+        context = process_relevant_news_rerank(relevant_news, question, data.get("re_ranked_docs"))
         answer = generate_response_with_ollama(question, str(context))
         return answer, context
 
@@ -114,6 +136,30 @@ def process_relevant_news(relevant_news):
         context.append(
             "La fecha del artículo es: " + datetime.utcfromtimestamp(meta['fecha']).strftime('%d/%m/%Y') + " " + str(
                 news))
+    return context
+
+
+# Funcion para procesar el contexto y sus metadatos para el modelo con reranking
+def process_relevant_news_rerank(relevant_news, question, top_n=5):
+    raw_context = relevant_news.get("documents")[0]
+    metadata = relevant_news.get("metadatas")[0]
+
+    pairs = [(question, doc) for doc in raw_context]
+    scores = cross_encoder.predict(pairs)
+
+    combined = list(zip(raw_context, metadata, scores))
+    sorted_combined = sorted(combined, key=lambda x: x[2], reverse=True)
+
+    top_docs = sorted_combined[:top_n]
+
+    context = []
+    for news, meta, _ in top_docs:
+        context.append(
+            "La fecha del artículo es: " +
+            datetime.utcfromtimestamp(meta['fecha']).strftime('%d/%m/%Y') +
+            " " + str(news)
+        )
+
     return context
 
 
