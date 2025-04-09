@@ -16,4 +16,10 @@
         </div>
     </form>
 </div>
+
+<script>
+    document.getElementById('queryForm').addEventListener('submit', function() {
+        document.getElementById('response').value = "Ejecutando la consulta...";
+    });
+</script>
 {% endblock %}
