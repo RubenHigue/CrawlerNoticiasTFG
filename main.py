@@ -89,7 +89,6 @@ def rerank_documents(question, retrieved_docs, top_n=5):
     raw_context = retrieved_docs.get("documents")
     pairs = [(question, doc) for doc in raw_context[0]]
 
-
     scores = cross_encoder.predict(pairs)
 
     docs_with_scores = list(zip(raw_context[0], scores))
