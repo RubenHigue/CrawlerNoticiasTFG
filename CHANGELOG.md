@@ -84,6 +84,42 @@ based on Open-Source Chinese Military News"
 - Insercción de los articulos en la BD Cassandra
 - Actualización de la extracción de las nuevas noticias para que se adecue al formato del resto
 
+## Semana 15 (24/2/2025)
 
+- Añadida evaluación para fidelidad 
+- Actualización de los prompts de evaluación
 
+## Semana 16 (3/3/2025)
+
+- Actualizaciones en los archivos de evaluación
+- Metrícas de factual correctness y similarity añadidas
+
+## Semana 17 (10/3/2025)
+
+- Adaptación de la métrica de similarity para seguir el ejemplo de RAGAS
+- Nueva fuente añadida, Galaxia Militar
+- Separación de los contextos por párrafos para su indexación en ChromaDB
+- Nueva fuente añadida, ElMundo
+
+## Semana 18 (17/3/2025)
+
+- Actualización de la interfaz
+- Obtención de los datos de evaluación
+
+## Semana 19 (24/3/2025)
+
+- Inclusión de varios jueces para la evaluación
+- Actualización de la interfaz para que muestre los contextos usados
+
+## Semana 20 (31/3/2025)
+
+- Actualización de la base de datos vectorial para que sea persistente
+- Cambio en la interfaz para hacerla interfaz web
+- Añadidos nuevos modelos como generadores de respuesta
+- Evaluación del sistema con los distintos modelos
+
+## Semana 21 (7/4/2025)
+
+- Adaptación del sistema para introducir reranking en los contextos
+- Añadida información de ejecución de consulta a la interfaz
 
