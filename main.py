@@ -81,7 +81,7 @@ def generate_response_with_ollama(question, context):
 from sentence_transformers import CrossEncoder
 
 # Inicializa el modelo CrossEncoder (puedes hacerlo en global)
-cross_encoder = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
+cross_encoder = CrossEncoder('cross-encoder/mmarco-mMiniLMv2-L12-H384-v1')
 
 
 # Funcion para reordenar los documentos obtenidos de ChromaDB
