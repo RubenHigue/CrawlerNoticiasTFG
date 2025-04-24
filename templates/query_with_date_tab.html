@@ -5,14 +5,21 @@
 {% block content %}
 <div class="container">
 
-    <textarea id="response" readonly>{{ answer if answer else "Aquí aparecerá la respuesta..." }}</textarea>
+    <textarea id="response" readonly style="height: 350px;">{{ answer if answer else "Aquí aparecerá la respuesta..." }}</textarea>
 
     <form id="queryForm" action="/execute_query_with_date" method="POST">
-        <div class="query-container">
-            <input type="text" id="query_date" name="query_date" placeholder="Introduce tu consulta" value="{{ query }}" required>
-            <input type="date" id="date1" name="date1" required>
-            <input type="date" id="date2" name="date2" required>
-            <button type="submit">Ejecutar Consulta</button>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; justify-content: center; gap: 15px; align-items: center;">
+                <label for="date1" style="margin-bottom: 0;">Fecha inicial:</label>
+                <input type="date" id="date1" name="date1" required style="height: 50px;">
+                <label for="date2" style="margin-bottom: 0;">Fecha final:</label>
+                <input type="date" id="date2" name="date2" required style="height: 50px;">
+            </div>
+            <div class="query-container" style="display: flex; align-items: center; gap: 10px;">
+                <input type="text" id="query_date" name="query_date" placeholder="Introduce tu consulta" value="{{ query }}" required style="height: 50px; flex-grow: 1;">
+                <button type="submit" style="height: 50px;">Ejecutar Consulta</button>
+                <button type="button" class="btn btn-secondary" style="height: 50px;" onclick="showContextDate()">Mostrar Contexto</button>
+            </div>
         </div>
     </form>
 </div>

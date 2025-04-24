@@ -5,12 +5,13 @@
 {% block content %}
 <div class="container">
 
-    <textarea id="response" readonly>{{ answer if answer else "Aquí aparecerá la respuesta..." }}</textarea>
+    <textarea id="response" readonly style="height: 400px;">{{ answer if answer else "Aquí aparecerá la respuesta..." }}</textarea>
 
     <form id="queryForm" action="/execute_query" method="POST">
-        <div class="query-container">
-            <input type="text" id="query" name="query" placeholder="Introduce tu consulta" value="{{ query }}" required>
-            <button type="submit">Ejecutar Consulta</button>
+        <div class="query-container" style="display: flex; align-items: center; gap: 10px;">
+            <input type="text" id="query" name="query" placeholder="Introduce tu consulta" value="{{ query }}" required style="flex-grow: 1; height: 50px;">
+            <button type="submit" style="height: 50px;">Ejecutar Consulta</button>
+            <button type="button" class="btn btn-secondary" style="height: 50px;" onclick="showContext()">Mostrar Contexto</button>
         </div>
     </form>
 </div>
