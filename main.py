@@ -49,6 +49,9 @@ embedding_model = SentenceTransformer("sentence-transformers/paraphrase-multilin
 last_context = None
 last_context_date = None
 
+# Fecha actualizacion
+last_crawl_date = None
+
 
 # embedding_model = SentenceTransformer("jaimevera1107/all-MiniLM-L6-v2-similarity-es")
 
@@ -455,6 +458,24 @@ def evaluate_dataset_with_llm(csv_path):
     print(f"\nRecall real promedio: {avg_realrecall:.2f}")
     print(f"Similarity promedio: {avg_sim:.2f}")
 
+def obtain_last_crawl_date():
+    rows = cassandra.get_last_crawl_date('noticias_tabulares')
+
+    fechas = []
+    global last_crawl_date
+
+    for row in rows:
+        try:
+            fecha_obj = datetime.strptime(row['fecha'], "%d/%m/%Y")
+            fechas.append(fecha_obj)
+        except:
+            pass
+
+    if fechas:
+        return max(fechas).strftime("%d/%m/%Y")
+    else:
+        return "Error en la información"
+
 
 ''''APP FLASK'''
 app = Flask(__name__)
@@ -462,7 +483,9 @@ app = Flask(__name__)
 
 @app.route('/')
 def index():
-    return render_template('query_tab.html')
+    global last_crawl_date
+    last_crawl_date = obtain_last_crawl_date()
+    return render_template('query_tab.html', last_crawl_date=last_crawl_date)
 
 
 @app.route('/query_tab', methods=['GET', 'POST'])
@@ -478,7 +501,7 @@ def query_tab():
             answer = "Por favor, introduce una consulta."
             context = []
 
-    return render_template('query_tab.html', answer=answer, context=context)
+    return render_template('query_tab.html', answer=answer, context=context, last_crawl_date=last_crawl_date)
 
 
 @app.route('/query_with_date_tab', methods=['GET', 'POST'])
@@ -498,7 +521,7 @@ def query_with_date_tab():
             date1 = datetime.strptime(date1, "%Y-%m-%d").strftime("%d/%m/%Y")
             date2 = datetime.strptime(date2, "%Y-%m-%d").strftime("%d/%m/%Y")
         except ValueError:
-            return render_template('query_with_date_tab.html', answer="Formato de fecha incorrecto", context=[])
+            return render_template('query_with_date_tab.html', answer="Formato de fecha incorrecto", context=[], last_crawl_date=last_crawl_date)
 
         print(f"Consulta: {question}, Fecha Inicio: {date1}, Fecha Fin: {date2}")  # DEBUG
 
@@ -513,7 +536,7 @@ def query_with_date_tab():
         else:
             answer = "Por favor, completa la consulta y selecciona las fechas."
 
-    return render_template('query_with_date_tab.html', answer=answer, context=context)
+    return render_template('query_with_date_tab.html', answer=answer, context=context, last_crawl_date=last_crawl_date)
 
 
 @app.route('/documents_tab')
@@ -527,7 +550,7 @@ def documents_tab():
     end = start + articles_per_page
     articles = all_articles[start:end]
 
-    return render_template("documents_tab.html", articles=articles, page=page, total_pages=total_pages)
+    return render_template("documents_tab.html", articles=articles, page=page, total_pages=total_pages, last_crawl_date=last_crawl_date)
 
 
 @app.route('/execute_query', methods=['POST'])
@@ -541,7 +564,7 @@ def execute_query():
 
     last_context = context
 
-    return render_template('query_tab.html', query=question, answer=answer)
+    return render_template('query_tab.html', query=question, answer=answer, last_crawl_date=last_crawl_date)
 
 
 @app.route('/execute_query_with_date', methods=['POST'])
@@ -571,12 +594,14 @@ def execute_query_with_date():
     else:
         answer = "Por favor, completa la consulta y selecciona las fechas."
 
-    return render_template('query_with_date_tab.html', answer=answer, context=context)
+    return render_template('query_with_date_tab.html', answer=answer, context=context, last_context_date=last_crawl_date)
 
 
 @app.route('/run_scraping', methods=['POST'])
 def run_scraping():
     crawl_and_store(urls=urls)
+    global last_crawl_date
+    last_crawl_date = obtain_last_crawl_date()
     return "Scraping ejecutado correctamente."
 
 

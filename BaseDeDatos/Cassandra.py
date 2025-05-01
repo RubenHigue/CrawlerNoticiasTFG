@@ -31,3 +31,12 @@ class Cassandra:
         except Exception as e:
             print(f"Error al recuperar las entidades de la tabla {table}: {e}")
             return []
+
+    def get_last_crawl_date(self, table):
+        try:
+            query = f"SELECT fecha FROM {table};"
+            results = self.session.execute(query)
+            return [row._asdict() for row in results]
+        except Exception as e:
+            print(f"Error al obtener las fechas: {e}")
+            return None
