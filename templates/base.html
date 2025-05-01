@@ -11,8 +11,12 @@
 <body>
     <header class="header">
         <img src="{{ url_for('static', filename='images/LogoUJA.jpg') }}" alt="Logo UJA" class="logo" onclick="window.location.href='{{ url_for('query_tab') }}'">
-        <h1 class="text-center flex-grow-1">RAG de Defensa</h1>
-        <img src="{{ url_for('static', filename='images/base-de-datos-2.png') }}"
+        <div>
+            <h1 class="text-center flex-grow-1">RAG de Defensa</h1>
+            <p class="text-center small">Última actualización de noticias: {{ last_crawl_date }}</p>
+        </div>
+
+        <img id="img-op-avanzadas" src="{{ url_for('static', filename='images/base-de-datos-2.png') }}"
              alt="Menú"
              class="menu-icon"
              title="Opciones avanzadas"
@@ -21,7 +25,8 @@
     </header>
 
     <!-- Menú de pestañas -->
-    <ul class="nav nav-underline">
+    <div>
+        <ul class="nav nav-underline" style="margin:auto">
         <li class="nav-item">
             <a class="nav-link {% if request.path == '/query_tab' %}active{% endif %}" href="{{ url_for('query_tab') }}">Consulta</a>
         </li>
@@ -32,6 +37,7 @@
             <a class="nav-link {% if request.path == '/documents_tab' %}active{% endif %}" href="{{ url_for('documents_tab') }}">Documentos</a>
         </li>
     </ul>
+    </div>
 
     <div class="container mt-4">
         {% block content %}{% endblock %}
@@ -74,7 +80,10 @@
         function runScraping() {
             fetch('/run_scraping', { method: 'POST' })
                 .then(response => response.text())
-                .then(data => alert(data))
+                .then(data =>{
+                     alert(data);
+                     location.reload();
+                })
                 .catch(error => console.error('Error:', error));
         }
 

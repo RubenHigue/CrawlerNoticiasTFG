@@ -26,6 +26,10 @@ input[type="date"]{
     max-width: 200px;
 }
 
+#img-op-avanzadas{
+    padding-left: 50px;
+}
+
 input[type="text"] {
     padding: 10px;
     margin: 10px;
