@@ -137,7 +137,7 @@ def process_relevant_news(relevant_news):
     for news, meta in zip(raw_context[0], metadata[0]):
         context.append(
             "La fecha del artículo es: " + datetime.utcfromtimestamp(meta['fecha']).strftime('%d/%m/%Y') + " " + str(
-                news))
+                news))  + " Fuente: " + meta['fuente']
     return context
 
 
@@ -159,7 +159,7 @@ def process_relevant_news_rerank(relevant_news, question, top_n=5):
         context.append(
             "La fecha del artículo es: " +
             datetime.utcfromtimestamp(meta['fecha']).strftime('%d/%m/%Y') +
-            " " + str(news)
+            " " + str(news) + " Fuente: " + meta['fuente']
         )
 
     return context
