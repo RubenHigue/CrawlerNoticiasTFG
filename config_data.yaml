@@ -1,4 +1,4 @@
-llm_model: "cas/salamandra-7b-instruct"
+llm_model: "llama3.2"
 judge_models: "mistral, qwen2.5"
 news_url: "https://www.libertaddigital.com/defensa/, https://www.eldebate.com/espana/defensa/, https://galaxiamilitar.es, https://www.elmundo.es/espana/ministerio-defensa.html"
 cassandra_host: "127.0.0.1"

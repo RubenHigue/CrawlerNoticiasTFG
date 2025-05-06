@@ -594,7 +594,7 @@ def execute_query_with_date():
     else:
         answer = "Por favor, completa la consulta y selecciona las fechas."
 
-    return render_template('query_with_date_tab.html', answer=answer, context=context, last_context_date=last_crawl_date)
+    return render_template('query_with_date_tab.html', answer=answer, context=context, last_crawl_date=last_crawl_date)
 
 
 @app.route('/run_scraping', methods=['POST'])
